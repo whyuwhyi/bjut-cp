@@ -18,36 +18,11 @@ parsing strategies including recursive descent and various LR-based algorithms.
 
 ---
 
-## 📁 Directory Layout
-
-.
-├── Kconfig # Configuration options (Kconfig system)
-├── Makefile # Cross-platform Makefile
-├── include/ # Public header interfaces
-│ ├── common.h
-│ ├── generated/ # Auto-generated headers (e.g., autoconf.h)
-│ ├── lexer-analyzer/ # Lexer headers
-│ ├── parser/ # Parser public interfaces (AST, API)
-│ └── utils.h
-├── src/ # Implementation files
-│ ├── lexer-analyzer/ # Lexer logic
-│ ├── parser/ # Parser logic
-│ │ ├── lr/ # LR parser framework
-│ │ ├── recursive_descent/
-│ │ └── grammar.c/h, parser_common.c/h, etc.
-│ ├── utils/ # Utility helpers
-│ ├── lexer-main.c # Lexer CLI driver
-│ └── parser-main.c # Parser CLI driver
-└── scripts/ # Build system integration (kconfig.mk)
-
----
-
 ## ⚙️ Configuration (Kconfig System)
 
 Before building, run:
 
-```bash
-make menuconfig
+    make menuconfig
 
 This will bring up a text-based configuration interface similar to the Linux kernel. You can select:
 
@@ -68,11 +43,11 @@ Once configured, header file include/generated/autoconf.h will be created.
 
 To build the entire project:
 
-make
+    make
 
 To clean all generated files:
 
-make clean
+    make clean
 
 🖥️ Platform Compatibility
 
