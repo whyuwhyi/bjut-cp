@@ -1,0 +1,1236 @@
+sample:
+0x7aqe9;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+while 976 ;
+
+expected output:
+WHILE     -
+DEC       976
+SEMI      -
+
+sample:
+06004 igv 075 026 ;
+else jqah oo41ttte 0x23ef ;
+
+expected output:
+OCT       3076
+IDN       igv
+OCT       61
+OCT       22
+ELSE      -
+IDN       jqah
+IDN       oo41ttte
+HEX       9199
+SEMI      -
+SEMI      -
+
+sample:
+01 ;
+else 04 ;
+else 03 757 12855 ;
+0xn67;
+
+expected output:
+OCT       1
+ELSE      -
+OCT       4
+ELSE      -
+OCT       3
+DEC       757
+DEC       12855
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+039;
+jr47 ;
+
+expected output:
+ILOCT     -
+IDN       jr47
+SEMI      -
+SEMI      -
+
+sample:
+0040 ;
+
+expected output:
+OCT       32
+SEMI      -
+
+sample:
+* <= ;
+0903;
+
+expected output:
+MUL       -
+LE        -
+ILOCT     -
+SEMI      -
+SEMI      -
+
+sample:
+if 001 02537 ; ;
+
+expected output:
+IF        -
+OCT       1
+OCT       1375
+SEMI      -
+SEMI      -
+
+sample:
+while 0xa84 aji ;
+
+expected output:
+WHILE     -
+HEX       2692
+IDN       aji
+SEMI      -
+
+sample:
+088;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+/ 05 y ;
+> 0x4 1393 ;
+0xb4fw;
+
+expected output:
+DIV       -
+OCT       5
+IDN       y
+GT        -
+HEX       4
+DEC       1393
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+then vm2 2275 sdsjmm ;
+
+expected output:
+THEN      -
+IDN       vm2
+DEC       2275
+IDN       sdsjmm
+SEMI      -
+
+sample:
+0909;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+08;
+begin 5803 0x49 e19l7 ;
+
+expected output:
+ILOCT     -
+BEGIN     -
+DEC       5803
+HEX       73
+IDN       e19l7
+SEMI      -
+SEMI      -
+
+sample:
+<= = 57530 mpw4ak ;
+00 n1n1y9gi ;
+else 00 ;
+
+expected output:
+LE        -
+EQ        -
+DEC       57530
+IDN       mpw4ak
+OCT       0
+IDN       n1n1y9gi
+ELSE      -
+OCT       0
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+then ainc > * ;
+
+expected output:
+THEN      -
+IDN       ainc
+GT        -
+MUL       -
+SEMI      -
+
+sample:
+0x06c pyjrz34c 0x3c8 51 0xa ;
+
+expected output:
+HEX       108
+IDN       pyjrz34c
+HEX       968
+DEC       51
+HEX       10
+SEMI      -
+
+sample:
+24 pykjgp 05 ;
+< + h fl >= ;
+
+expected output:
+DEC       24
+IDN       pykjgp
+OCT       5
+LT        -
+ADD       -
+IDN       h
+IDN       fl
+GE        -
+SEMI      -
+SEMI      -
+
+sample:
+0950;
+0x470 ;
+
+expected output:
+ILOCT     -
+HEX       1136
+SEMI      -
+SEMI      -
+
+sample:
+08;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+if o7 0142 ;
+02987;
+
+expected output:
+IF        -
+IDN       o7
+OCT       98
+ILOCT     -
+SEMI      -
+SEMI      -
+
+sample:
+cz 0x758 2699 w 42 ;
+01842;
+0xcs6;
+0x8f1n;
+while 0x31 03 ;
+
+expected output:
+IDN       cz
+HEX       1880
+DEC       2699
+IDN       w
+DEC       42
+ILOCT     -
+ILHEX     -
+ILHEX     -
+WHILE     -
+HEX       49
+OCT       3
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+04638;
+0xf5y75;
+08;
+
+expected output:
+ILOCT     -
+ILHEX     -
+ILOCT     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+= 0x3 429 466 / ;
+
+expected output:
+EQ        -
+HEX       3
+DEC       429
+DEC       466
+DIV       -
+SEMI      -
+
+sample:
+<= p1e6f6 0x795 00 53 ;
+
+expected output:
+LE        -
+IDN       p1e6f6
+HEX       1941
+OCT       0
+DEC       53
+SEMI      -
+
+sample:
+0x50dyc;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+else 1798 ;
+0xv4;
+07396;
+
+expected output:
+ELSE      -
+DEC       1798
+ILHEX     -
+ILOCT     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+ajcye ;
+
+expected output:
+IDN       ajcye
+SEMI      -
+
+sample:
+begin lwd8 4 ;
+
+expected output:
+BEGIN     -
+IDN       lwd8
+DEC       4
+SEMI      -
+
+sample:
+0xr4;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+0x7o;
+end 043 ; 06464 ;
+0x3o;
+0xh9;
+
+expected output:
+ILHEX     -
+END       -
+OCT       35
+OCT       3380
+ILHEX     -
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+else = 416 0762 ;
+
+expected output:
+ELSE      -
+EQ        -
+DEC       416
+OCT       498
+SEMI      -
+
+sample:
+end ) e54w7l 46897 ;
+09;
+while 80359 0x79a ;
+
+expected output:
+END       -
+IDN       e54w7l
+DEC       46897
+ILOCT     -
+WHILE     -
+DEC       80359
+HEX       1946
+SRP       -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+begin dbo5b 02726 ;
+
+expected output:
+BEGIN     -
+IDN       dbo5b
+OCT       1494
+SEMI      -
+
+sample:
+05707 338 * 045 4909 ;
+
+expected output:
+OCT       3015
+DEC       338
+MUL       -
+OCT       37
+DEC       4909
+SEMI      -
+
+sample:
+end 00075 ;
+else 8965 g3 ;
+t7gt1q4 8 46 d9aeb ;
+
+expected output:
+END       -
+OCT       61
+ELSE      -
+DEC       8965
+IDN       g3
+IDN       t7gt1q4
+DEC       8
+DEC       46
+IDN       d9aeb
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+then z utyr1e2 kialjs9 ;
+0xa79w0;
+else 074 0x940d ;
+
+expected output:
+THEN      -
+IDN       z
+IDN       utyr1e2
+IDN       kialjs9
+ILHEX     -
+ELSE      -
+OCT       60
+HEX       37901
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+if 01112 <> ;
+end q ;
+09197;
+
+expected output:
+IF        -
+OCT       586
+NEQ       -
+END       -
+IDN       q
+ILOCT     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+023 * 027 + ;
+
+expected output:
+OCT       19
+MUL       -
+OCT       23
+ADD       -
+SEMI      -
+
+sample:
+0372 0xae5 pirk ;
+0x87n;
+
+expected output:
+OCT       250
+HEX       2789
+IDN       pirk
+ILHEX     -
+SEMI      -
+SEMI      -
+
+sample:
+0893;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+then 0xe2 0xfa ;
+
+expected output:
+THEN      -
+HEX       226
+HEX       250
+SEMI      -
+
+sample:
+while 71056 ;
+00446 ;
+
+expected output:
+WHILE     -
+DEC       71056
+OCT       294
+SEMI      -
+SEMI      -
+
+sample:
+begin 0xef ) 0xb4 ;
+do 0xb72 ;
+
+expected output:
+BEGIN     -
+HEX       239
+HEX       180
+DO        -
+HEX       2930
+SRP       -
+SEMI      -
+SEMI      -
+
+sample:
+00467 0x30 ;
+0x9db 9710 ;
+
+expected output:
+OCT       311
+HEX       48
+HEX       2523
+DEC       9710
+SEMI      -
+SEMI      -
+
+sample:
+39 >= 0x3 <> ;
+0xgf49c;
+0x3jfa;
+
+expected output:
+DEC       39
+GE        -
+HEX       3
+NEQ       -
+ILHEX     -
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+end lt1 ;
+
+expected output:
+END       -
+IDN       lt1
+SEMI      -
+
+sample:
+while 0x0a 0x3 0x0343 ;
+do 220 ;
+( ( * - 0xb ;
+
+expected output:
+WHILE     -
+HEX       10
+HEX       3
+HEX       835
+DO        -
+DEC       220
+MUL       -
+SUB       -
+HEX       11
+SEMI      -
+SEMI      -
+SLP       -
+SLP       -
+SEMI      -
+
+sample:
+t3o 0x9 hpp52jfd 0xd6 ;
+
+expected output:
+IDN       t3o
+HEX       9
+IDN       hpp52jfd
+HEX       214
+SEMI      -
+
+sample:
+08;
+0x27w9;
+z0b / be7o 0xf6 0x2561 ;
+while ; ;
+if 06144 ;
+
+expected output:
+ILOCT     -
+ILHEX     -
+IDN       z0b
+DIV       -
+IDN       be7o
+HEX       246
+HEX       9569
+WHILE     -
+IF        -
+OCT       3172
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+0xboaa;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+05 0x1 > 95 0343 ;
+end 0xc7 ;
+0x5 0x9 < 07055 ml2jdl ;
+rk4q ;
+
+expected output:
+OCT       5
+HEX       1
+GT        -
+DEC       95
+OCT       227
+END       -
+HEX       199
+HEX       5
+HEX       9
+LT        -
+OCT       3629
+IDN       ml2jdl
+IDN       rk4q
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+then 0xe38 443 nli55 ;
+
+expected output:
+THEN      -
+HEX       3640
+DEC       443
+IDN       nli55
+SEMI      -
+
+sample:
+do 05031 agkcb 2684 ;
+0xe21 ;
+
+expected output:
+DO        -
+OCT       2585
+IDN       agkcb
+DEC       2684
+HEX       3617
+SEMI      -
+SEMI      -
+
+sample:
+else 012 20 sa ;
+
+expected output:
+ELSE      -
+OCT       10
+DEC       20
+IDN       sa
+SEMI      -
+
+sample:
+end gpte 0xde < ;
+while 03 t36 00 ;
+
+expected output:
+END       -
+IDN       gpte
+HEX       222
+LT        -
+WHILE     -
+OCT       3
+IDN       t36
+OCT       0
+SEMI      -
+SEMI      -
+
+sample:
+then <> ts8q5 ;
+else / ;
+
+expected output:
+THEN      -
+NEQ       -
+IDN       ts8q5
+ELSE      -
+DIV       -
+SEMI      -
+SEMI      -
+
+sample:
+0xq1;
+else 0 0356 014 ;
+0xdadbl;
+
+expected output:
+ILHEX     -
+ELSE      -
+DEC       0
+OCT       238
+OCT       12
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+0x53l6;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+qwbc9 <> 012 ;
+
+expected output:
+IDN       qwbc9
+NEQ       -
+OCT       10
+SEMI      -
+
+sample:
+0994;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+8489 <= ;
+
+expected output:
+DEC       8489
+LE        -
+SEMI      -
+
+sample:
+do 6 / ;
+0836;
+
+expected output:
+DO        -
+DEC       6
+DIV       -
+ILOCT     -
+SEMI      -
+SEMI      -
+
+sample:
+0351 jxb5o2 37 072 ;
+0xbu;
+09;
+
+expected output:
+OCT       233
+IDN       jxb5o2
+DEC       37
+OCT       58
+ILHEX     -
+ILOCT     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+050 ;
+
+expected output:
+OCT       40
+SEMI      -
+
+sample:
+080;
+end 012 6 ( ;
+0x91k;
+0388;
+begin 0xe67c 0xe 30 ;
+
+expected output:
+ILOCT     -
+END       -
+OCT       10
+DEC       6
+ILHEX     -
+ILOCT     -
+BEGIN     -
+HEX       59004
+HEX       14
+DEC       30
+SEMI      -
+SLP       -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+3 60650 00 0370 / ;
+else k7bhkz1 > 065 ;
+if ( ufux9 ;
+; ;
+
+expected output:
+DEC       3
+DEC       60650
+OCT       0
+OCT       248
+DIV       -
+ELSE      -
+IDN       k7bhkz1
+GT        -
+OCT       53
+IF        -
+IDN       ufux9
+SEMI      -
+SEMI      -
+SLP       -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+094;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+end 4958 859 ;
+
+expected output:
+END       -
+DEC       4958
+DEC       859
+SEMI      -
+
+sample:
+r1 * 0xb692 xq4 hrgqyl ;
+
+expected output:
+IDN       r1
+MUL       -
+HEX       46738
+IDN       xq4
+IDN       hrgqyl
+SEMI      -
+
+sample:
+01 >= > ;
+if f8r 0x16be ;
+
+expected output:
+OCT       1
+GE        -
+GT        -
+IF        -
+IDN       f8r
+HEX       5822
+SEMI      -
+SEMI      -
+
+sample:
+00036 ;
+
+expected output:
+OCT       30
+SEMI      -
+
+sample:
+do 4692 <= ;
+
+expected output:
+DO        -
+DEC       4692
+LE        -
+SEMI      -
+
+sample:
+end 0763 0x03 ;
+
+expected output:
+END       -
+OCT       499
+HEX       3
+SEMI      -
+
+sample:
+< 64 rbf2 61 k9y6oq ;
+0xcn;
+
+expected output:
+LT        -
+DEC       64
+IDN       rbf2
+DEC       61
+IDN       k9y6oq
+ILHEX     -
+SEMI      -
+SEMI      -
+
+sample:
+while <= ;
+
+expected output:
+WHILE     -
+LE        -
+SEMI      -
+
+sample:
+0xc + > j85 co4 ;
+0xe3d 45311 4 wiy47wz 0xe ;
+0xk00;
+
+expected output:
+HEX       12
+ADD       -
+GT        -
+IDN       j85
+IDN       co4
+HEX       3645
+DEC       45311
+DEC       4
+IDN       wiy47wz
+HEX       14
+ILHEX     -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+0786;
+04670 ) 0x6fc ;
+
+expected output:
+ILOCT     -
+OCT       2488
+HEX       1788
+SEMI      -
+SRP       -
+SEMI      -
+
+sample:
+36791 0x4 05410 ) ;
+
+expected output:
+DEC       36791
+HEX       4
+OCT       2824
+SRP       -
+SEMI      -
+
+sample:
+while < a 0734 ;
+
+expected output:
+WHILE     -
+LT        -
+IDN       a
+OCT       476
+SEMI      -
+
+sample:
+while 432 02042 ;
+0x4ae3q;
+7078 0650 szqk3q ;
+then 0x66 qs <> ;
+93 ;
+
+expected output:
+WHILE     -
+DEC       432
+OCT       1058
+ILHEX     -
+DEC       7078
+OCT       424
+IDN       szqk3q
+THEN      -
+HEX       102
+IDN       qs
+NEQ       -
+DEC       93
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+10296 07274 ;
+
+expected output:
+DEC       10296
+OCT       3772
+SEMI      -
+
+sample:
+0xua1;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+begin id ( ;
+
+expected output:
+BEGIN     -
+IDN       id
+SLP       -
+SEMI      -
+
+sample:
+06089;
+0xerb8;
+begin 05367 ;
+
+expected output:
+ILOCT     -
+ILHEX     -
+BEGIN     -
+OCT       2807
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+begin 033 010 + ;
+
+expected output:
+BEGIN     -
+OCT       27
+OCT       8
+ADD       -
+SEMI      -
+
+sample:
+end ( 01 ;
+00278;
+909 ;
+if 0x6 <= ;
+
+expected output:
+END       -
+OCT       1
+ILOCT     -
+DEC       909
+IF        -
+HEX       6
+LE        -
+SLP       -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+begin 27882 ;
+if ql15ij + / ;
+
+expected output:
+BEGIN     -
+DEC       27882
+IF        -
+IDN       ql15ij
+ADD       -
+DIV       -
+SEMI      -
+SEMI      -
+
+sample:
+ub45jn lz65dk 064 0150 ;
+then 0xea3 rcjx2ogr ;
+do 0x9bf2 ;
+
+expected output:
+IDN       ub45jn
+IDN       lz65dk
+OCT       52
+OCT       104
+THEN      -
+HEX       3747
+IDN       rcjx2ogr
+DO        -
+HEX       39922
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+0x3y71;
+
+expected output:
+ILHEX     -
+SEMI      -
+
+sample:
+618 u05q1w 0xacb ;
+33 xigje 0x1d1d + < ;
+0x8 ; ;
+
+expected output:
+DEC       618
+IDN       u05q1w
+HEX       2763
+DEC       33
+IDN       xigje
+HEX       7453
+ADD       -
+LT        -
+HEX       8
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+then 0x7f7 <= ;
+
+expected output:
+THEN      -
+HEX       2039
+LE        -
+SEMI      -
+
+sample:
+xpn 1846 v ;
+
+expected output:
+IDN       xpn
+DEC       1846
+IDN       v
+SEMI      -
+
+sample:
+end 0x8ca0 ;
+054 vwyx2pqu 0x0 031 0x67 ;
+0548;
++ * ;
+
+expected output:
+END       -
+HEX       36000
+OCT       44
+IDN       vwyx2pqu
+HEX       0
+OCT       25
+HEX       103
+ILOCT     -
+ADD       -
+MUL       -
+SEMI      -
+SEMI      -
+SEMI      -
+SEMI      -
+
+sample:
+0163 g6 ;
+
+expected output:
+OCT       115
+IDN       g6
+SEMI      -
+
+sample:
+<> 0460 0x849 0xa953 ;
+
+expected output:
+NEQ       -
+OCT       304
+HEX       2121
+HEX       43347
+SEMI      -
+
+sample:
+while >= 0x9b 0xf8 ;
+
+expected output:
+WHILE     -
+GE        -
+HEX       155
+HEX       248
+SEMI      -
+
+sample:
+0824;
+039;
+
+expected output:
+ILOCT     -
+ILOCT     -
+SEMI      -
+SEMI      -
+
+sample:
+096;
+
+expected output:
+ILOCT     -
+SEMI      -
+
+sample:
+0877;
+> 0x183 999 ;
+09;
+
+expected output:
+ILOCT     -
+GT        -
+HEX       387
+DEC       999
+ILOCT     -
+SEMI      -
+SEMI      -
+SEMI      -
+

@@ -303,45 +303,45 @@ static char *generate_expected_output_for_token(const char *token) {
 
   /* Determine token type based on content */
   if (strcmp(token, "if") == 0) {
-    strcpy(output, "IF       -\n");
+    strcpy(output, "IF        -\n");
   } else if (strcmp(token, "then") == 0) {
-    strcpy(output, "THEN     -\n");
+    strcpy(output, "THEN      -\n");
   } else if (strcmp(token, "else") == 0) {
-    strcpy(output, "ELSE     -\n");
+    strcpy(output, "ELSE      -\n");
   } else if (strcmp(token, "while") == 0) {
-    strcpy(output, "WHILE    -\n");
+    strcpy(output, "WHILE     -\n");
   } else if (strcmp(token, "do") == 0) {
-    strcpy(output, "DO       -\n");
+    strcpy(output, "DO        -\n");
   } else if (strcmp(token, "begin") == 0) {
-    strcpy(output, "BEGIN    -\n");
+    strcpy(output, "BEGIN     -\n");
   } else if (strcmp(token, "end") == 0) {
-    strcpy(output, "END      -\n");
+    strcpy(output, "END       -\n");
   } else if (strcmp(token, "+") == 0) {
-    strcpy(output, "ADD      -\n");
+    strcpy(output, "ADD       -\n");
   } else if (strcmp(token, "-") == 0) {
-    strcpy(output, "SUB      -\n");
+    strcpy(output, "SUB       -\n");
   } else if (strcmp(token, "*") == 0) {
-    strcpy(output, "MUL      -\n");
+    strcpy(output, "MUL       -\n");
   } else if (strcmp(token, "/") == 0) {
-    strcpy(output, "DIV      -\n");
+    strcpy(output, "DIV       -\n");
   } else if (strcmp(token, ">") == 0) {
-    strcpy(output, "GT       -\n");
+    strcpy(output, "GT        -\n");
   } else if (strcmp(token, "<") == 0) {
-    strcpy(output, "LT       -\n");
+    strcpy(output, "LT        -\n");
   } else if (strcmp(token, "=") == 0) {
-    strcpy(output, "EQ       -\n");
+    strcpy(output, "EQ        -\n");
   } else if (strcmp(token, ">=") == 0) {
-    strcpy(output, "GE       -\n");
+    strcpy(output, "GE        -\n");
   } else if (strcmp(token, "<=") == 0) {
-    strcpy(output, "LE       -\n");
+    strcpy(output, "LE        -\n");
   } else if (strcmp(token, "<>") == 0) {
-    strcpy(output, "NEQ      -\n");
+    strcpy(output, "NEQ       -\n");
   } else if (strcmp(token, "(") == 0) {
-    strcpy(output, "SLP      -\n");
+    strcpy(output, "SLP       -\n");
   } else if (strcmp(token, ")") == 0) {
-    strcpy(output, "SRP      -\n");
+    strcpy(output, "SRP       -\n");
   } else if (strcmp(token, ";") == 0) {
-    strcpy(output, "SEMI     -\n");
+    strcpy(output, "SEMI      -\n");
   } else if (token[0] == '0' && token[1] == 'x') {
     /* Check if it's a valid hexadecimal */
     int valid = 1;
@@ -357,9 +357,9 @@ static char *generate_expected_output_for_token(const char *token) {
     if (valid) {
       int value;
       sscanf(token + 2, "%x", &value);
-      sprintf(output, "HEX      %d\n", value);
+      sprintf(output, "HEX       %d\n", value);
     } else {
-      sprintf(output, "ILHEX    %s\n", token);
+      sprintf(output, "ILHEX     -\n");
     }
   } else if (token[0] == '0' && token[1] != '\0') {
     /* Check if it's a valid octal */
@@ -374,18 +374,18 @@ static char *generate_expected_output_for_token(const char *token) {
     if (valid) {
       int value;
       sscanf(token + 1, "%o", &value);
-      sprintf(output, "OCT      %d\n", value);
+      sprintf(output, "OCT       %d\n", value);
     } else {
-      sprintf(output, "ILOCT    %s\n", token);
+      sprintf(output, "ILOCT     -\n");
     }
   } else if (token[0] >= '0' && token[0] <= '9') {
     /* Decimal number */
     int value;
     sscanf(token, "%d", &value);
-    sprintf(output, "DEC      %d\n", value);
+    sprintf(output, "DEC       %d\n", value);
   } else {
     /* Default to identifier */
-    sprintf(output, "IDN      %s\n", token);
+    sprintf(output, "IDN       %s\n", token);
   }
 
   return output;

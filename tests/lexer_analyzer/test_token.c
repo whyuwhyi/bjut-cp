@@ -80,19 +80,19 @@ static void test_token_to_string(void) {
   /* Test numeric token */
   Token dec_token = token_create_num(TK_DEC, 123);
   token_to_string(&dec_token, buffer, sizeof(buffer));
-  ASSERT_STR_EQ(buffer, "DEC       123",
+  ASSERT_STR_EQ(buffer, "DEC        123",
                 "Decimal token string format incorrect");
 
   /* Test string token */
   Token idn_token = token_create_str(TK_IDN, "abc");
   token_to_string(&idn_token, buffer, sizeof(buffer));
-  ASSERT_STR_EQ(buffer, "IDN       abc",
+  ASSERT_STR_EQ(buffer, "IDN        abc",
                 "Identifier token string format incorrect");
 
   /* Test operator token */
   Token op_token = token_create(TK_ADD);
   token_to_string(&op_token, buffer, sizeof(buffer));
-  ASSERT_STR_EQ(buffer, "ADD       -",
+  ASSERT_STR_EQ(buffer, "ADD        -",
                 "Operator token string format incorrect");
 
   /* Test edge cases */

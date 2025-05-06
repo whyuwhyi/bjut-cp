@@ -8,3 +8,56 @@ menu "Build Options"
           Enable debug output in the console.
 endmenu
 
+menu "Parser Configuration"
+    choice
+        prompt "Parser type"
+        default PARSER_RECURSIVE_DESCENT
+        help
+          Select which parsing algorithm to use
+
+        config PARSER_RECURSIVE_DESCENT
+            bool "Recursive Descent Parser"
+            help
+              Use recursive descent parsing algorithm
+
+        config PARSER_LR
+            bool "LR Parser"
+            help
+              Use LR parsing algorithm
+    endchoice
+
+    choice
+        prompt "LR Parser Variant"
+        depends on PARSER_LR
+        default PARSER_LR1
+        help
+          Select which LR parser variant to use
+
+        config PARSER_LR0
+            bool "LR(0) Parser"
+            help
+              Use LR(0) parsing algorithm
+
+        config PARSER_SLR1
+            bool "SLR(1) Parser"
+            help
+              Use SLR(1) parsing algorithm
+
+        config PARSER_LR1
+            bool "LR(1) Parser (Canonical LR(1))"
+            help
+              Use canonical LR(1) parsing algorithm
+    endchoice
+
+    config OUTPUT_SYNTAX_TREE
+        bool "Output syntax tree"
+        default y
+        help
+          Output the syntax tree during parsing
+
+    config OUTPUT_LEFTMOST_DERIVATION
+        bool "Output leftmost derivation"
+        default y
+        help
+          Output the leftmost derivation sequence during parsing
+endmenu

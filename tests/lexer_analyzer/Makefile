@@ -33,6 +33,9 @@ TEST_TOKEN_EXE := $(BUILD_DIR)$(SEP)test_token$(EXEEXT)
 TEST_LEXER_EXE := $(BUILD_DIR)$(SEP)test_lexer$(EXEEXT)
 TEST_MAIN_EXE  := $(BUILD_DIR)$(SEP)test_main$(EXEEXT)
 
+SAMPALE_DIR := samples
+SAMPLE_FILES := $(SAMPALE_DIR)$(SEP)sample1.txt
+
 .PHONY: all prepare test clean
 
 # -----------------------------------------------------------------------------
@@ -56,7 +59,7 @@ test: all
 	@echo "Running lexer test..."
 	@$(TEST_LEXER_EXE)
 	@echo "Running main test..."
-	@$(TEST_MAIN_EXE)
+	@$(TEST_MAIN_EXE) $(SAMPLE_FILES)
 
 # -----------------------------------------------------------------------------
 # Link rules for each test executable
