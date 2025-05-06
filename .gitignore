@@ -1,0 +1,9 @@
+**/build/
+**/build/**
+
+.cache/
+.cache/**
+
+.config
+.config.old
+**/compile_commands.json

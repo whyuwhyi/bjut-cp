@@ -1,0 +1,10 @@
+mainmenu "Compiler Project Configuration"
+
+menu "Build Options"
+    config DEBUG
+        bool "Enable debug output"
+        default y
+        help
+          Enable debug output in the console.
+endmenu
+
