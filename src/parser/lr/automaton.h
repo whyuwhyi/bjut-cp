@@ -6,8 +6,8 @@
 #ifndef LR_AUTOMATON_H
 #define LR_AUTOMATON_H
 
-#include "../grammar.h"
 #include "item.h"
+#include "parser/grammar.h"
 #include <stdbool.h>
 
 /* Forward declaration */

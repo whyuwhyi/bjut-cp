@@ -6,7 +6,7 @@
 #ifndef LR_ITEM_H
 #define LR_ITEM_H
 
-#include "../grammar.h"
+#include "parser/grammar.h"
 #include <stdbool.h>
 
 /**

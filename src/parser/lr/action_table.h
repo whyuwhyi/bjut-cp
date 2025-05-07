@@ -6,7 +6,7 @@
 #ifndef ACTION_TABLE_H
 #define ACTION_TABLE_H
 
-#include "../grammar.h"
+#include "parser/grammar.h"
 #include <stdbool.h>
 
 /**

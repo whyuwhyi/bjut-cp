@@ -11,16 +11,6 @@
 #include <string.h>
 
 /**
- * @brief Get the root node of a syntax tree
- */
-SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree) {
-  if (!tree) {
-    return NULL;
-  }
-  return tree->root;
-}
-
-/**
  * @brief Build an AST from a syntax tree
  */
 AST *ast_builder_build(const SyntaxTree *tree) {
