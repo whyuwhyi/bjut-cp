@@ -525,311 +525,93 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
     return false;
   }
 
-  /* Initialize FIRST and FOLLOW sets */
+  /* Allocate FIRST sets */
+  grammar->first_sets =
+      (bool **)safe_malloc(grammar->nonterminals_count * sizeof(bool *));
+  if (!grammar->first_sets) {
+    return false;
+  }
+
   for (int i = 0; i < grammar->nonterminals_count; i++) {
+    /* +1 for epsilon */
     grammar->first_sets[i] =
-        (bool *)safe_calloc(grammar->terminals_count + 1, sizeof(bool));
-    grammar->follow_sets[i] =
-        (bool *)safe_calloc(grammar->terminals_count, sizeof(bool));
-    if (!grammar->first_sets[i] || !grammar->follow_sets[i]) {
+        (bool *)safe_malloc((grammar->terminals_count + 1) * sizeof(bool));
+    if (!grammar->first_sets[i]) {
+      for (int j = 0; j < i; j++) {
+        free(grammar->first_sets[j]);
+      }
+      free(grammar->first_sets);
+      grammar->first_sets = NULL;
       return false;
+    }
+    memset(grammar->first_sets[i], 0,
+           (grammar->terminals_count + 1) * sizeof(bool));
+  }
+
+  /* Allocate FOLLOW sets */
+  grammar->follow_sets =
+      (bool **)safe_malloc(grammar->nonterminals_count * sizeof(bool *));
+  if (!grammar->follow_sets) {
+    for (int i = 0; i < grammar->nonterminals_count; i++) {
+      free(grammar->first_sets[i]);
+    }
+    free(grammar->first_sets);
+    grammar->first_sets = NULL;
+    return false;
+  }
+
+  for (int i = 0; i < grammar->nonterminals_count; i++) {
+    grammar->follow_sets[i] =
+        (bool *)safe_malloc(grammar->terminals_count * sizeof(bool));
+    if (!grammar->follow_sets[i]) {
+      for (int j = 0; j < i; j++) {
+        free(grammar->follow_sets[j]);
+      }
+      free(grammar->follow_sets);
+      grammar->follow_sets = NULL;
+      for (int j = 0; j < grammar->nonterminals_count; j++) {
+        free(grammar->first_sets[j]);
+      }
+      free(grammar->first_sets);
+      grammar->first_sets = NULL;
+      return false;
+    }
+    memset(grammar->follow_sets[i], 0, grammar->terminals_count * sizeof(bool));
+  }
+
+  /* Add $ to FOLLOW set of start symbol */
+  int end_token_idx = -1;
+  for (int i = 0; i < grammar->terminals_count; i++) {
+    if (grammar->symbols[grammar->terminal_indices[i]].token == TK_SEMI) {
+      end_token_idx = i;
+      break;
     }
   }
 
-  /* Keep track of computed sets */
-  bool *first_computed =
-      (bool *)safe_calloc(grammar->nonterminals_count, sizeof(bool));
-  bool *follow_computed =
-      (bool *)safe_calloc(grammar->nonterminals_count, sizeof(bool));
-  if (!first_computed || !follow_computed) {
-    free(first_computed);
-    free(follow_computed);
-    return false;
+  if (end_token_idx >= 0) {
+    grammar->follow_sets[grammar->start_symbol][end_token_idx] = true;
+    DEBUG_PRINT(
+        "Added $ to FOLLOW set of %s (start symbol)",
+        grammar->symbols[grammar->nonterminal_indices[grammar->start_symbol]]
+            .name);
   }
 
   /* Compute FIRST sets */
   bool first_changed;
   do {
     first_changed = false;
-
     for (int i = 0; i < grammar->nonterminals_count; i++) {
-      int nt = grammar->nonterminal_indices[i];
-
-      /* For each production with this non-terminal on the left side */
-      for (int p = 0; p < grammar->productions_count; p++) {
-        if (grammar->productions[p].lhs != nt) {
-          continue;
-        }
-
-        /* Get the first symbol of the production */
-        if (grammar->productions[p].rhs_length == 0) {
-          /* Empty production, add epsilon to FIRST set */
-          if (!grammar->first_sets[i][grammar->terminals_count]) {
-            grammar->first_sets[i][grammar->terminals_count] = true;
-            first_changed = true;
-          }
-          continue;
-        }
-
-        Symbol *first_symbol = &grammar->productions[p].rhs[0];
-
-        if (first_symbol->type == SYMBOL_TERMINAL) {
-          /* Terminal symbol, add to FIRST set */
-          int term_idx = -1;
-          for (int t = 0; t < grammar->terminals_count; t++) {
-            if (grammar->terminal_indices[t] == first_symbol->terminal) {
-              term_idx = t;
-              break;
-            }
-          }
-
-          if (term_idx >= 0 && !grammar->first_sets[i][term_idx]) {
-            grammar->first_sets[i][term_idx] = true;
-            first_changed = true;
-          }
-        } else if (first_symbol->type == SYMBOL_NONTERMINAL) {
-          /* Non-terminal symbol, add its FIRST set to the current FIRST set */
-          int nt_idx = -1;
-          for (int n = 0; n < grammar->nonterminals_count; n++) {
-            if (grammar->nonterminal_indices[n] == first_symbol->nonterminal) {
-              nt_idx = n;
-              break;
-            }
-          }
-
-          if (nt_idx >= 0) {
-            for (int t = 0; t < grammar->terminals_count; t++) {
-              if (grammar->first_sets[nt_idx][t] &&
-                  !grammar->first_sets[i][t]) {
-                grammar->first_sets[i][t] = true;
-                first_changed = true;
-              }
-            }
-
-            /* If epsilon is in FIRST of the non-terminal and there are more
-             * symbols */
-            if (grammar->first_sets[nt_idx][grammar->terminals_count]) {
-              if (grammar->productions[p].rhs_length == 1) {
-                /* Only one symbol and it can be epsilon, add epsilon to FIRST
-                 */
-                if (!grammar->first_sets[i][grammar->terminals_count]) {
-                  grammar->first_sets[i][grammar->terminals_count] = true;
-                  first_changed = true;
-                }
-              } else {
-                /* More symbols, check the next symbol */
-                /* This is a simplified version, a complete implementation would
-                   check all subsequent symbols until one doesn't have epsilon
-                   or if all have epsilon, then add epsilon to FIRST */
-                Symbol *next_symbol = &grammar->productions[p].rhs[1];
-
-                if (next_symbol->type == SYMBOL_TERMINAL) {
-                  int term_idx = -1;
-                  for (int t = 0; t < grammar->terminals_count; t++) {
-                    if (grammar->terminal_indices[t] == next_symbol->terminal) {
-                      term_idx = t;
-                      break;
-                    }
-                  }
-
-                  if (term_idx >= 0 && !grammar->first_sets[i][term_idx]) {
-                    grammar->first_sets[i][term_idx] = true;
-                    first_changed = true;
-                  }
-                } else if (next_symbol->type == SYMBOL_NONTERMINAL) {
-                  int next_nt_idx = -1;
-                  for (int n = 0; n < grammar->nonterminals_count; n++) {
-                    if (grammar->nonterminal_indices[n] ==
-                        next_symbol->nonterminal) {
-                      next_nt_idx = n;
-                      break;
-                    }
-                  }
-
-                  if (next_nt_idx >= 0) {
-                    for (int t = 0; t < grammar->terminals_count; t++) {
-                      if (grammar->first_sets[next_nt_idx][t] &&
-                          !grammar->first_sets[i][t]) {
-                        grammar->first_sets[i][t] = true;
-                        first_changed = true;
-                      }
-                    }
-
-                    /* Check for epsilon chain */
-                    if (grammar->productions[p].rhs_length == 2 &&
-                        grammar->first_sets[next_nt_idx]
-                                           [grammar->terminals_count]) {
-                      if (!grammar->first_sets[i][grammar->terminals_count]) {
-                        grammar->first_sets[i][grammar->terminals_count] = true;
-                        first_changed = true;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+      if (compute_first_set(grammar, i)) {
+        first_changed = true;
       }
     }
   } while (first_changed);
 
-  /* Mark all FIRST sets as computed */
-  for (int i = 0; i < grammar->nonterminals_count; i++) {
-    first_computed[i] = true;
-  }
-
-  /* Compute FOLLOW sets */
-  /* Add EOF to FOLLOW of start symbol */
-  int start_nt_idx = -1;
-  for (int i = 0; i < grammar->nonterminals_count; i++) {
-    if (grammar->nonterminal_indices[i] == grammar->start_symbol) {
-      start_nt_idx = i;
-      break;
-    }
-  }
-
-  if (start_nt_idx >= 0) {
-    int eof_idx = -1;
-    for (int t = 0; t < grammar->terminals_count; t++) {
-      if (grammar->symbols[grammar->terminal_indices[t]].token == TK_END) {
-        eof_idx = t;
-        break;
-      }
-    }
-
-    if (eof_idx >= 0) {
-      grammar->follow_sets[start_nt_idx][eof_idx] = true;
-    }
-  }
-
   /* Compute FOLLOW sets */
   bool follow_changed;
   do {
-    follow_changed = false;
-
-    /* For each production */
-    for (int p = 0; p < grammar->productions_count; p++) {
-      int lhs_nt = grammar->productions[p].lhs;
-      int lhs_idx = -1;
-
-      /* Find the index of the LHS non-terminal */
-      for (int i = 0; i < grammar->nonterminals_count; i++) {
-        if (grammar->nonterminal_indices[i] == lhs_nt) {
-          lhs_idx = i;
-          break;
-        }
-      }
-
-      if (lhs_idx < 0) {
-        continue;
-      }
-
-      /* For each symbol in the right side */
-      for (int s = 0; s < grammar->productions[p].rhs_length; s++) {
-        Symbol *symbol = &grammar->productions[p].rhs[s];
-
-        /* Only interested in non-terminals */
-        if (symbol->type != SYMBOL_NONTERMINAL) {
-          continue;
-        }
-
-        int nt_idx = -1;
-        for (int i = 0; i < grammar->nonterminals_count; i++) {
-          if (grammar->nonterminal_indices[i] == symbol->nonterminal) {
-            nt_idx = i;
-            break;
-          }
-        }
-
-        if (nt_idx < 0) {
-          continue;
-        }
-
-        /* If this is the last symbol or all symbols that follow can derive
-           epsilon, add FOLLOW of LHS to FOLLOW of this non-terminal */
-        if (s == grammar->productions[p].rhs_length - 1) {
-          for (int t = 0; t < grammar->terminals_count; t++) {
-            if (grammar->follow_sets[lhs_idx][t] &&
-                !grammar->follow_sets[nt_idx][t]) {
-              grammar->follow_sets[nt_idx][t] = true;
-              follow_changed = true;
-            }
-          }
-        } else {
-          /* Compute FIRST of beta (the rest of the production) */
-          bool all_epsilon = true;
-          for (int next = s + 1; next < grammar->productions[p].rhs_length;
-               next++) {
-            Symbol *next_symbol = &grammar->productions[p].rhs[next];
-
-            if (next_symbol->type == SYMBOL_TERMINAL) {
-              /* Terminal symbol, add to FOLLOW set of current non-terminal */
-              int term_idx = -1;
-              for (int t = 0; t < grammar->terminals_count; t++) {
-                if (grammar->terminal_indices[t] == next_symbol->terminal) {
-                  term_idx = t;
-                  break;
-                }
-              }
-
-              if (term_idx >= 0 && !grammar->follow_sets[nt_idx][term_idx]) {
-                grammar->follow_sets[nt_idx][term_idx] = true;
-                follow_changed = true;
-              }
-
-              all_epsilon = false;
-              break;
-            } else if (next_symbol->type == SYMBOL_NONTERMINAL) {
-              /* Non-terminal symbol, add its FIRST set to FOLLOW of current
-               * non-terminal */
-              int next_nt_idx = -1;
-              for (int n = 0; n < grammar->nonterminals_count; n++) {
-                if (grammar->nonterminal_indices[n] ==
-                    next_symbol->nonterminal) {
-                  next_nt_idx = n;
-                  break;
-                }
-              }
-
-              if (next_nt_idx >= 0) {
-                for (int t = 0; t < grammar->terminals_count; t++) {
-                  if (grammar->first_sets[next_nt_idx][t] &&
-                      !grammar->follow_sets[nt_idx][t]) {
-                    grammar->follow_sets[nt_idx][t] = true;
-                    follow_changed = true;
-                  }
-                }
-
-                /* If epsilon is not in FIRST, stop checking */
-                if (!grammar
-                         ->first_sets[next_nt_idx][grammar->terminals_count]) {
-                  all_epsilon = false;
-                  break;
-                }
-              }
-            }
-          }
-
-          /* If all following symbols can derive epsilon, add FOLLOW of LHS to
-           * FOLLOW of this non-terminal */
-          if (all_epsilon) {
-            for (int t = 0; t < grammar->terminals_count; t++) {
-              if (grammar->follow_sets[lhs_idx][t] &&
-                  !grammar->follow_sets[nt_idx][t]) {
-                grammar->follow_sets[nt_idx][t] = true;
-                follow_changed = true;
-              }
-            }
-          }
-        }
-      }
-    }
+    follow_changed = compute_follow_set(grammar);
   } while (follow_changed);
-
-  /* Free the tracking arrays */
-  free(first_computed);
-  free(follow_computed);
 
   DEBUG_PRINT("Computed FIRST and FOLLOW sets for grammar");
   return true;
