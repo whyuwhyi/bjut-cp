@@ -67,36 +67,30 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
 
       /* Check for reduction */
       if (lr_item_is_reduction(item, grammar)) {
-        /* Accept if this is [S' -> S., $] */
+        /* Accept if this is [S' -> S.] with EOF lookahead */
         if (item->production_id == 0 &&
             item->dot_position >= grammar->productions[0].rhs_length) {
-          /* Find end token index */
-          int end_token_idx = -1;
-          for (int i = 0; i < grammar->terminals_count; i++) {
-            if (grammar->symbols[grammar->terminal_indices[i]].token ==
-                TK_SEMI) {
-              end_token_idx = i;
-              break;
-            }
-          }
-
-          if (end_token_idx >= 0) {
-            /* Check if $ is in lookaheads */
-            for (int i = 0; i < item->lookahead_count; i++) {
-              if (item->lookaheads[i] == end_token_idx) {
+          /* Find end token index in lookaheads */
+          for (int la = 0; la < item->lookahead_count; la++) {
+            int end_token_idx = item->lookaheads[la];
+            if (end_token_idx >= 0 &&
+                end_token_idx < grammar->terminals_count) {
+              TokenType token =
+                  grammar->symbols[grammar->terminal_indices[end_token_idx]]
+                      .token;
+              if (token == TK_END ||
+                  token == TK_SEMI) { /* Accept on EOF or semicolon */
                 action_table_set_action(common->table, state_idx, end_token_idx,
                                         ACTION_ACCEPT, 0);
-                break;
               }
             }
           }
         } else {
-          /* Reduce by this production for terminals in lookaheads */
-          for (int i = 0; i < item->lookahead_count; i++) {
-            int lookahead = item->lookaheads[i];
-
-            if (lookahead >= 0 && lookahead < grammar->terminals_count) {
-              action_table_set_action(common->table, state_idx, lookahead,
+          /* Reduce by this production for all lookaheads */
+          for (int la = 0; la < item->lookahead_count; la++) {
+            int term = item->lookaheads[la];
+            if (term >= 0 && term < grammar->terminals_count) {
+              action_table_set_action(common->table, state_idx, term,
                                       ACTION_REDUCE, item->production_id);
             }
           }
@@ -109,11 +103,17 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
       int symbol_id = state->transitions[trans].symbol_id;
       LRState *target = state->transitions[trans].state;
 
+      /* Check each symbol type */
+      bool is_terminal = false;
+      bool is_nonterminal = false;
+      int term_idx = -1;
+      int nt_idx = -1;
+
       /* Check if this is a terminal */
-      for (int term = 0; term < grammar->terminals_count; term++) {
-        if (grammar->terminal_indices[term] == symbol_id) {
-          action_table_set_action(common->table, state_idx, term, ACTION_SHIFT,
-                                  target->id);
+      for (int t = 0; t < grammar->terminals_count; t++) {
+        if (grammar->terminal_indices[t] == symbol_id) {
+          is_terminal = true;
+          term_idx = t;
           break;
         }
       }
@@ -121,9 +121,21 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
       /* Check if this is a non-terminal */
       for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
         if (grammar->nonterminal_indices[nt] == symbol_id) {
-          action_table_set_goto(common->table, state_idx, nt, target->id);
+          is_nonterminal = true;
+          nt_idx = nt;
           break;
         }
+      }
+
+      if (is_terminal && term_idx >= 0) {
+        /* Add shift action */
+        action_table_set_action(common->table, state_idx, term_idx,
+                                ACTION_SHIFT, target->id);
+      }
+
+      if (is_nonterminal && nt_idx >= 0) {
+        /* Add goto action */
+        action_table_set_goto(common->table, state_idx, nt_idx, target->id);
       }
     }
   }

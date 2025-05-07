@@ -96,36 +96,133 @@ bool lr_closure(LRAutomaton *automaton, LRState *state, bool use_lookaheads) {
 
       int nonterminal_id = symbol_after_dot->nonterminal;
 
+      /* Calculate FIRST set of β part */
+      /* Use dynamic allocation instead of stack array */
+      bool *beta_first =
+          (bool *)calloc(grammar->terminals_count + 1, sizeof(bool));
+      if (!beta_first) {
+        return false;
+      }
+
+      /* Get the number of symbols on the right side of the current production
+       */
+      Production *curr_prod = &grammar->productions[curr_item->production_id];
+      int rhs_length = curr_prod->rhs_length;
+
+      /* If there are multiple symbols after the dot, calculate FIRST(β) */
+      if (curr_item->dot_position + 1 < rhs_length) {
+        /* Dynamically allocate memory for beta symbols */
+        Symbol *beta_symbols = (Symbol *)malloc(
+            (rhs_length - curr_item->dot_position - 1) * sizeof(Symbol));
+        if (!beta_symbols) {
+          free(beta_first);
+          return false;
+        }
+
+        int beta_length = 0;
+        for (int j = curr_item->dot_position + 1; j < rhs_length; j++) {
+          beta_symbols[beta_length++] = curr_prod->rhs[j];
+        }
+
+        /* Calculate FIRST(β) */
+        lr_calculate_first_of_sequence(grammar, beta_symbols, beta_length,
+                                       beta_first);
+
+        free(beta_symbols);
+      } else {
+        /* If β is empty, then FIRST(β) contains ε */
+        beta_first[grammar->terminals_count] = true; /* epsilon position */
+      }
+
       /* Find all productions with this non-terminal on the LHS */
       for (int p = 0; p < grammar->productions_count; p++) {
         if (grammar->productions[p].lhs == nonterminal_id) {
-          /* Create a new item */
-          LRItem *new_item;
+          /* Calculate lookaheads for the new item */
+          int *new_lookaheads = NULL;
+          int new_lookahead_count = 0;
 
           if (use_lookaheads) {
-            /* For LR(1) items, calculate lookaheads */
-            /* This is simplified for now */
-            int lookaheads[1] = {0}; // Simplified
-            new_item = lr_item_create(p, 0, lookaheads, 1);
-          } else {
-            /* For LR(0) items */
-            new_item = lr_item_create(p, 0, NULL, 0);
+            /* For simplicity, first count the new lookaheads */
+            for (int t = 0; t < grammar->terminals_count; t++) {
+              if (beta_first[t]) {
+                new_lookahead_count++;
+              }
+            }
+
+            /* If FIRST(β) contains ε, add all lookaheads from the parent item
+             */
+            if (beta_first[grammar->terminals_count] &&
+                curr_item->lookahead_count > 0) {
+              new_lookahead_count += curr_item->lookahead_count;
+            }
+
+            /* Allocate lookahead array */
+            if (new_lookahead_count > 0) {
+              new_lookaheads = (int *)malloc(new_lookahead_count * sizeof(int));
+              if (!new_lookaheads) {
+                free(beta_first);
+                return false;
+              }
+
+              /* First add terminals from FIRST(β) */
+              int idx = 0;
+              for (int t = 0; t < grammar->terminals_count; t++) {
+                if (beta_first[t]) {
+                  new_lookaheads[idx++] = t;
+                }
+              }
+
+              /* If FIRST(β) contains ε, add lookaheads from parent item */
+              if (beta_first[grammar->terminals_count] &&
+                  curr_item->lookahead_count > 0) {
+                for (int j = 0; j < curr_item->lookahead_count; j++) {
+                  /* Check if already exists */
+                  bool exists = false;
+                  for (int k = 0; k < idx; k++) {
+                    if (new_lookaheads[k] == curr_item->lookaheads[j]) {
+                      exists = true;
+                      break;
+                    }
+                  }
+
+                  if (!exists && idx < new_lookahead_count) {
+                    new_lookaheads[idx++] = curr_item->lookaheads[j];
+                  }
+                }
+              }
+
+              /* Adjust the actual lookahead count */
+              new_lookahead_count = idx;
+            }
+          }
+
+          /* Create new item */
+          LRItem *new_item =
+              lr_item_create(p, 0, new_lookaheads, new_lookahead_count);
+
+          /* Free the temporarily allocated lookahead array */
+          if (new_lookaheads) {
+            free(new_lookaheads);
           }
 
           if (!new_item) {
+            free(beta_first);
             return false;
           }
 
           /* Try to add the item to the state */
           if (lr_state_add_item(state, new_item)) {
-            /* Item was added, keep track for loop condition */
+            /* Item was added to the state's items array */
             added = true;
           } else {
-            /* Item already exists, we need to free it */
+            /* Item was not added, need to free it */
             lr_item_destroy(new_item);
           }
         }
       }
+
+      /* Free the beta_first array */
+      free(beta_first);
     }
   } while (added);
 
@@ -206,7 +303,6 @@ LRState *lr_goto(LRAutomaton *automaton, LRState *state, int symbol_id) {
 
   /* Check if state already exists in automaton */
   for (int s = 0; s < automaton->state_count; s++) {
-    /* Fix: Check for state equality regardless of lookaheads flag */
     if (use_lookaheads) {
       if (lr_state_equals_with_lookaheads(new_state, automaton->states[s])) {
         /* State already exists, use existing state */
@@ -223,10 +319,7 @@ LRState *lr_goto(LRAutomaton *automaton, LRState *state, int symbol_id) {
   }
 
   /* Add new state to automaton */
-  if (!lr_automaton_add_state(automaton, new_state)) {
-    lr_state_destroy(new_state);
-    return NULL;
-  }
+  automaton->states[automaton->state_count++] = new_state;
 
   return new_state;
 }
@@ -250,14 +343,36 @@ bool lr_create_canonical_collection(LRAutomaton *automaton, Grammar *grammar,
   LRItem *start_item = NULL;
 
   if (use_lookaheads) {
-    /* Find end token index for lookahead */
-    int end_token_idx = get_terminal_index(grammar, TK_SEMI);
+    /* Find EOF or end token index for lookahead */
+    int end_token_idx = -1;
+    for (int i = 0; i < grammar->terminals_count; i++) {
+      if (grammar->symbols[grammar->terminal_indices[i]].token == TK_END) {
+        end_token_idx = i;
+        break;
+      }
+    }
+
+    if (end_token_idx < 0) {
+      /* If no EOF token found, use semicolon or first terminal */
+      for (int i = 0; i < grammar->terminals_count; i++) {
+        if (grammar->symbols[grammar->terminal_indices[i]].token == TK_SEMI) {
+          end_token_idx = i;
+          break;
+        }
+      }
+
+      if (end_token_idx < 0 && grammar->terminals_count > 0) {
+        end_token_idx = 0; /* Use first terminal if nothing else found */
+      }
+    }
 
     if (end_token_idx >= 0) {
       int lookaheads[1] = {end_token_idx};
       start_item = lr_item_create(0, 0, lookaheads, 1);
     } else {
+      /* Fall back to LR(0) if no terminals found */
       start_item = lr_item_create_lr0(0, 0);
+      use_lookaheads = false;
     }
   } else {
     start_item = lr_item_create_lr0(0, 0);
@@ -282,10 +397,7 @@ bool lr_create_canonical_collection(LRAutomaton *automaton, Grammar *grammar,
   }
 
   /* Add initial state to automaton */
-  if (!lr_automaton_add_state(automaton, initial_state)) {
-    lr_state_destroy(initial_state);
-    return false;
-  }
+  automaton->states[automaton->state_count++] = initial_state;
   automaton->start_state = initial_state;
 
   /* Process states until no new states are added */
