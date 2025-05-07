@@ -4,7 +4,7 @@
  */
 
 #include "parser/parser.h"
-#include "grammar.h"
+#include "parser/grammar.h"
 #include "parser_common.h"
 #include "recursive_descent/rd_parser.h"
 #include "utils.h"

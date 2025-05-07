@@ -37,10 +37,64 @@ typedef enum {
   OP_EQ   /* Equal (=) */
 } BinaryOpType;
 
-/**
- * @brief Abstract syntax tree node
- */
 typedef struct ASTNode ASTNode;
+/**
+ * @brief AST node structure definition
+ */
+struct ASTNode {
+  ASTNodeType type; /* Type of node */
+
+  /* Node-specific data */
+  union {
+    /* Program */
+    struct {
+      ASTNode *statement_list; /* List of statements */
+    } program;
+
+    /* Statement list */
+    struct {
+      ASTNode *statement; /* Current statement */
+      ASTNode *next;      /* Next statement list node */
+    } statement_list;
+
+    /* Assignment statement */
+    struct {
+      char *variable_name; /* Variable name */
+      ASTNode *expression; /* Expression to assign */
+    } assign_stmt;
+
+    /* If statement */
+    struct {
+      ASTNode *condition;   /* Condition expression */
+      ASTNode *then_branch; /* Then branch statements */
+      ASTNode *else_branch; /* Else branch statements (can be NULL) */
+    } if_stmt;
+
+    /* While statement */
+    struct {
+      ASTNode *condition; /* Condition expression */
+      ASTNode *body;      /* Loop body statements */
+    } while_stmt;
+
+    /* Binary expression */
+    struct {
+      BinaryOpType op; /* Operator type */
+      ASTNode *left;   /* Left operand */
+      ASTNode *right;  /* Right operand */
+    } binary_expr;
+
+    /* Variable reference */
+    struct {
+      char *name; /* Variable name */
+    } variable;
+
+    /* Constant value */
+    struct {
+      int value;            /* Constant value */
+      TokenType token_type; /* Token type (for determining the base) */
+    } constant;
+  };
+};
 
 /**
  * @brief Abstract syntax tree

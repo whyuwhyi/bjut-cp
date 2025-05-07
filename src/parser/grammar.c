@@ -3,7 +3,7 @@
  * @brief Grammar implementation
  */
 
-#include "grammar.h"
+#include "parser/grammar.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -517,6 +517,10 @@ static bool compute_follow_set(Grammar *grammar) {
   return changed;
 }
 
+#define EXTRA_TERMINALS 2
+// Why is here?
+// Segmentation fault make me so confused.
+
 /**
  * @brief Compute FIRST and FOLLOW sets for the grammar
  */
@@ -534,8 +538,8 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
 
   for (int i = 0; i < grammar->nonterminals_count; i++) {
     /* +1 for epsilon */
-    grammar->first_sets[i] =
-        (bool *)safe_malloc((grammar->terminals_count + 1) * sizeof(bool));
+    grammar->first_sets[i] = (bool *)safe_malloc(
+        (grammar->terminals_count + EXTRA_TERMINALS) * sizeof(bool));
     if (!grammar->first_sets[i]) {
       for (int j = 0; j < i; j++) {
         free(grammar->first_sets[j]);
@@ -545,7 +549,7 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
       return false;
     }
     memset(grammar->first_sets[i], 0,
-           (grammar->terminals_count + 1) * sizeof(bool));
+           (grammar->terminals_count + EXTRA_TERMINALS) * sizeof(bool));
   }
 
   /* Allocate FOLLOW sets */
@@ -561,8 +565,8 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
   }
 
   for (int i = 0; i < grammar->nonterminals_count; i++) {
-    grammar->follow_sets[i] =
-        (bool *)safe_malloc(grammar->terminals_count * sizeof(bool));
+    grammar->follow_sets[i] = (bool *)safe_malloc(
+        (grammar->terminals_count + EXTRA_TERMINALS) * sizeof(bool));
     if (!grammar->follow_sets[i]) {
       for (int j = 0; j < i; j++) {
         free(grammar->follow_sets[j]);
@@ -576,10 +580,11 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
       grammar->first_sets = NULL;
       return false;
     }
-    memset(grammar->follow_sets[i], 0, grammar->terminals_count * sizeof(bool));
+    memset(grammar->follow_sets[i], 0,
+           (grammar->terminals_count + EXTRA_TERMINALS) * sizeof(bool));
   }
 
-  /* Add $ to FOLLOW set of start symbol */
+  /* Add # to FOLLOW set of start symbol */
   int end_token_idx = -1;
   for (int i = 0; i < grammar->terminals_count; i++) {
     if (grammar->symbols[grammar->terminal_indices[i]].token == TK_SEMI) {
@@ -591,7 +596,7 @@ bool grammar_compute_first_follow_sets(Grammar *grammar) {
   if (end_token_idx >= 0) {
     grammar->follow_sets[grammar->start_symbol][end_token_idx] = true;
     DEBUG_PRINT(
-        "Added $ to FOLLOW set of %s (start symbol)",
+        "Added # to FOLLOW set of %s (start symbol)",
         grammar->symbols[grammar->nonterminal_indices[grammar->start_symbol]]
             .name);
   }

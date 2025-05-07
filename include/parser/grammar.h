@@ -18,7 +18,7 @@ typedef enum {
   SYMBOL_TERMINAL,    /* Terminal symbol (token) */
   SYMBOL_NONTERMINAL, /* Non-terminal symbol */
   SYMBOL_EPSILON,     /* Empty production (ε) */
-  SYMBOL_END          /* End of input ($) */
+  SYMBOL_END          /* End of input (#) */
 } SymbolType;
 
 /**

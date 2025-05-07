@@ -15,7 +15,7 @@
 /* Command-line options */
 static struct option long_options[] = {{"help", no_argument, NULL, 'h'},
                                        {"file", required_argument, NULL, 'f'},
-                                       {"verbose", no_argument, NULL, 'v'},
+                                       {"output", required_argument, NULL, 'o'},
                                        {NULL, 0, NULL, 0}};
 
 /**
@@ -26,7 +26,7 @@ static void print_usage(const char *program_name) {
   printf("Options:\n");
   printf("  -h, --help                Display this help message\n");
   printf("  -f, --file FILEPATH       Input file path (default: stdin)\n");
-  printf("  -v, --verbose             Enable verbose output\n");
+  printf("  -o, --output FILEPATH     Output file path (default: stdout)\n");
 }
 
 /**
@@ -40,7 +40,6 @@ static char *read_stdin() {
     fprintf(stderr, "Out of memory\n");
     return NULL;
   }
-
   int ch;
   while ((ch = getchar()) != EOF) {
     /* Grow buffer if needed */
@@ -60,14 +59,53 @@ static char *read_stdin() {
   return source;
 }
 
+/**
+ * @brief Write syntax tree to a file
+ */
+static bool write_syntax_tree_to_file(SyntaxTree *tree, Parser *parser,
+                                      const char *filename) {
+  FILE *file = fopen(filename, "w");
+  if (!file) {
+    fprintf(stderr, "Error: Cannot open file '%s' for writing\n", filename);
+    return false;
+  }
+
+  /* Save original stdout */
+  int orig_stdout = dup(fileno(stdout));
+
+  /* Redirect stdout to file */
+  if (dup2(fileno(file), fileno(stdout)) == -1) {
+    fprintf(stderr, "Error: Failed to redirect stdout\n");
+    fclose(file);
+    return false;
+  }
+
+  /* Print syntax tree */
+#ifdef CONFIG_OUTPUT_SYNTAX_TREE
+  syntax_tree_print(tree);
+#endif
+
+  /* Print leftmost derivation if enabled */
+#ifdef CONFIG_OUTPUT_LEFTMOST_DERIVATION
+  parser_print_leftmost_derivation(parser);
+#endif
+
+  /* Restore stdout */
+  fflush(stdout);
+  dup2(orig_stdout, fileno(stdout));
+  close(orig_stdout);
+
+  fclose(file);
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   /* Parse command-line arguments */
-  bool verbose = false;
   char *input_file = NULL;
+  char *output_file = NULL;
   int c;
   int option_index = 0;
-
-  while ((c = getopt_long(argc, argv, "hf:v", long_options, &option_index)) !=
+  while ((c = getopt_long(argc, argv, "hf:o:", long_options, &option_index)) !=
          -1) {
     switch (c) {
     case 'h':
@@ -76,8 +114,8 @@ int main(int argc, char *argv[]) {
     case 'f':
       input_file = optarg;
       break;
-    case 'v':
-      verbose = true;
+    case 'o':
+      output_file = optarg;
       break;
     case '?':
       /* getopt_long already printed an error message */
@@ -92,7 +130,6 @@ int main(int argc, char *argv[]) {
 
   /* Determine parser type from Kconfig settings */
   ParserType parser_type;
-
 #ifdef CONFIG_PARSER_RECURSIVE_DESCENT
   parser_type = PARSER_TYPE_RECURSIVE_DESCENT;
 #elif defined(CONFIG_PARSER_LR0)
@@ -138,12 +175,6 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  /* Print tokens if verbose */
-  if (verbose) {
-    printf("Tokenization result:\n");
-    lexer_print_tokens(lexer);
-  }
-
   /* Create parser */
   printf("Creating %s parser...\n", parser_type_to_string(parser_type));
   Parser *parser = parser_create(parser_type);
@@ -178,20 +209,30 @@ int main(int argc, char *argv[]) {
   /* Print parsing result */
   printf("\nParsing successful!\n");
 
-  /* Print syntax tree if enabled */
+  /* Output parsing results */
+  if (output_file) {
+    printf("Writing parsing results to file: %s\n", output_file);
+    if (!write_syntax_tree_to_file(tree, parser, output_file)) {
+      syntax_tree_destroy(tree);
+      parser_destroy(parser);
+      free(source);
+      lexer_destroy(lexer);
+      return EXIT_FAILURE;
+    }
+  } else {
+    /* Print syntax tree if enabled */
 #ifdef CONFIG_OUTPUT_SYNTAX_TREE
-  printf("\n");
-  syntax_tree_print(tree);
+    printf("\n");
+    syntax_tree_print(tree);
 #endif
 
-  /* Print leftmost derivation if enabled */
+    /* Print leftmost derivation if enabled */
 #ifdef CONFIG_OUTPUT_LEFTMOST_DERIVATION
-  printf("\n");
-  parser_print_leftmost_derivation(parser);
+    printf("\n");
+    parser_print_leftmost_derivation(parser);
 #endif
+  }
 
-  /* Clean up */
-  // syntax_tree_destroy(tree);
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);

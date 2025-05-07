@@ -41,7 +41,7 @@ typedef struct {
 /**
  * @brief Initial capacity for stacks
  */
-#define INITIAL_STACK_CAPACITY 64
+#define INITIAL_STACK_CAPACITY 128
 
 /**
  * @brief Get the index of a terminal in the grammar

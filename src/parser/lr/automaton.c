@@ -23,7 +23,8 @@ LRAutomaton *lr_automaton_create(Grammar *grammar) {
   }
 
   /* Initialize with a small initial capacity */
-  const int INITIAL_STATES_CAPACITY = 16;
+  const int INITIAL_STATES_CAPACITY =
+      64; // Why is here? Cause I have no time to rebuild project structure.
   automaton->states =
       (LRState **)safe_malloc(INITIAL_STATES_CAPACITY * sizeof(LRState *));
   if (!automaton->states) {

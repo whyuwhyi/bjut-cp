@@ -4,6 +4,7 @@
  */
 
 #include "codegen/codegen.h"
+#include "ast/ast_builder.h"
 #include "codegen_internal.h"
 #include "common.h"
 #include <stdio.h>
@@ -120,26 +121,30 @@ TACProgram *codegen_generate(CodeGenerator *gen, SyntaxTree *tree) {
   gen->has_error = false;
   memset(gen->error_message, 0, sizeof(gen->error_message));
 
-  /* Get root node of syntax tree */
-  SyntaxTreeNode *root = syntax_tree_get_root(tree);
-  if (!root) {
+  /* Build AST from syntax tree */
+  AST *ast = ast_builder_build(tree);
+  if (!ast) {
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Syntax tree has no root node");
+             "Failed to build AST from syntax tree");
     return NULL;
   }
 
   /* Generate code for program */
-  if (!codegen_program(gen, root)) {
+  if (!codegen_program_ast(gen, ast->root)) {
     if (!gen->has_error) {
       gen->has_error = true;
       snprintf(gen->error_message, sizeof(gen->error_message),
                "Failed to generate code for program");
     }
+    ast_destroy(ast);
     return NULL;
   }
 
-  DEBUG_PRINT("Generated three-address code from syntax tree");
+  /* Clean up AST */
+  ast_destroy(ast);
+
+  DEBUG_PRINT("Generated three-address code from AST");
   return gen->program;
 }
 
@@ -171,9 +176,9 @@ TACProgram *codegen_generate_from_source(CodeGenerator *gen, Lexer *lexer,
 }
 
 /**
- * @brief Generate code for a program node
+ * @brief Generate code for a program node from AST
  */
-bool codegen_program(CodeGenerator *gen, SyntaxTreeNode *node) {
+bool codegen_program_ast(CodeGenerator *gen, ASTNode *node) {
   if (!gen || !node) {
     return false;
   }
@@ -188,88 +193,87 @@ bool codegen_program(CodeGenerator *gen, SyntaxTreeNode *node) {
   }
 
   /* Check node type */
-  if (node->type != NODE_PROGRAM) {
+  if (node->type != AST_PROGRAM) {
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected program node, got %d", node->type);
+             "Expected AST program node, got %d", node->type);
     code_attributes_destroy(attrs);
     return false;
   }
 
-  /* Process children */
-  for (int i = 0; i < node->child_count; i++) {
-    SyntaxTreeNode *child = node->children[i];
+  /* Process statements */
+  ASTNode *stmt_list = node->program.statement_list;
+  while (stmt_list) {
+    if (stmt_list->type == AST_STATEMENT_LIST) {
+      /* Process current statement */
+      if (!codegen_stmt_ast(gen, stmt_list->statement_list.statement, attrs)) {
+        code_attributes_destroy(attrs);
+        return false;
+      }
 
-    /* Generate code for statement */
-    if (!codegen_stmt(gen, child, attrs)) {
-      code_attributes_destroy(attrs);
-      return false;
+      /* Move to next statement */
+      stmt_list = stmt_list->statement_list.next;
+    } else {
+      /* Single statement without a list */
+      if (!codegen_stmt_ast(gen, stmt_list, attrs)) {
+        code_attributes_destroy(attrs);
+        return false;
+      }
+      break;
     }
   }
 
   code_attributes_destroy(attrs);
-  DEBUG_PRINT("Generated code for program");
+  DEBUG_PRINT("Generated code for program from AST");
   return true;
 }
 
 /**
- * @brief Generate code for a statement node
+ * @brief Generate code for a statement from AST
  */
-bool codegen_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
-                  CodeAttributes *attrs) {
+bool codegen_stmt_ast(CodeGenerator *gen, ASTNode *node,
+                      CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
   /* Determine statement type and delegate */
   switch (node->type) {
-  case NODE_ASSIGNMENT:
-    return codegen_assignment(gen, node, attrs);
+  case AST_ASSIGN_STMT:
+    return codegen_assignment_ast(gen, node, attrs);
 
-  case NODE_IF:
-    return codegen_if_stmt(gen, node, attrs);
+  case AST_IF_STMT:
+    return codegen_if_stmt_ast(gen, node, attrs);
 
-  case NODE_IF_ELSE:
-    return codegen_if_else_stmt(gen, node, attrs);
-
-  case NODE_WHILE:
-    return codegen_while_stmt(gen, node, attrs);
+  case AST_WHILE_STMT:
+    return codegen_while_stmt_ast(gen, node, attrs);
 
   default:
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Unknown statement type: %d", node->type);
+             "Unknown AST statement type: %d", node->type);
     return false;
   }
 }
 
 /**
- * @brief Generate code for an assignment statement
+ * @brief Generate code for an assignment statement from AST
  */
-bool codegen_assignment(CodeGenerator *gen, SyntaxTreeNode *node,
-                        CodeAttributes *attrs) {
+bool codegen_assignment_ast(CodeGenerator *gen, ASTNode *node,
+                            CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
   /* Check node type */
-  if (node->type != NODE_ASSIGNMENT) {
+  if (node->type != AST_ASSIGN_STMT) {
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected assignment node, got %d", node->type);
+             "Expected AST assignment node, got %d", node->type);
     return false;
   }
 
-  /* Get variable name (child 0) */
-  SyntaxTreeNode *var_node = node->children[0];
-  if (!var_node || var_node->type != NODE_IDENTIFIER) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected identifier node as assignment target");
-    return false;
-  }
-
-  const char *var_name = var_node->value.string_val;
+  const char *var_name = node->assign_stmt.variable_name;
 
   /* Add variable to symbol table if not already there */
   if (!symbol_table_lookup(gen->symbol_table, var_name)) {
@@ -281,17 +285,17 @@ bool codegen_assignment(CodeGenerator *gen, SyntaxTreeNode *node,
     }
   }
 
-  /* Generate code for expression (child 1) */
+  /* Generate code for expression */
   CodeAttributes expr_attrs;
   memset(&expr_attrs, 0, sizeof(CodeAttributes));
 
-  if (!codegen_expression(gen, node->children[1], &expr_attrs)) {
+  if (!codegen_expression_ast(gen, node->assign_stmt.expression, &expr_attrs)) {
     return false;
   }
 
   /* Add assignment instruction */
   tac_program_add_inst(gen->program, TAC_OP_ASSIGN, var_name, expr_attrs.place,
-                       NULL, node->lineno);
+                       NULL, 0); // Line number not available in AST
 
   /* Set return attributes */
   attrs->place = safe_strdup(var_name);
@@ -299,23 +303,27 @@ bool codegen_assignment(CodeGenerator *gen, SyntaxTreeNode *node,
   DEBUG_PRINT("Generated code for assignment: %s := %s", var_name,
               expr_attrs.place);
 
+  if (expr_attrs.place) {
+    free(expr_attrs.place);
+  }
+
   return true;
 }
 
 /**
- * @brief Generate code for an if statement
+ * @brief Generate code for an if statement from AST
  */
-bool codegen_if_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
-                     CodeAttributes *attrs) {
+bool codegen_if_stmt_ast(CodeGenerator *gen, ASTNode *node,
+                         CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
   /* Check node type */
-  if (node->type != NODE_IF) {
+  if (node->type != AST_IF_STMT) {
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected if node, got %d", node->type);
+             "Expected AST if node, got %d", node->type);
     return false;
   }
 
@@ -324,168 +332,100 @@ bool codegen_if_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
   char *next_label = attrs->next_label
                          ? safe_strdup(attrs->next_label)
                          : label_manager_new_label(gen->label_manager);
+  char *false_label = node->if_stmt.else_branch
+                          ? label_manager_new_label(gen->label_manager)
+                          : next_label;
 
-  /* Generate code for condition (child 0) */
-  CodeAttributes cond_attrs;
-  memset(&cond_attrs, 0, sizeof(CodeAttributes));
-  cond_attrs.true_label = true_label;
-  cond_attrs.false_label = next_label;
-
-  if (!codegen_condition(gen, node->children[0], &cond_attrs)) {
-    if (true_label)
-      free(true_label);
-    if (next_label && !attrs->next_label)
-      free(next_label);
-    return false;
-  }
-
-  /* Add true label */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL,
-                       node->lineno);
-
-  /* Generate code for then part (child 1) */
-  CodeAttributes then_attrs;
-  memset(&then_attrs, 0, sizeof(CodeAttributes));
-  then_attrs.next_label = next_label;
-
-  if (!codegen_stmt(gen, node->children[1], &then_attrs)) {
-    if (true_label)
-      free(true_label);
-    if (next_label && !attrs->next_label)
-      free(next_label);
-    return false;
-  }
-
-  /* Add next label if it wasn't passed in */
-  if (!attrs->next_label) {
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL,
-                         node->lineno);
-  }
-
-  /* Clean up */
-  if (true_label)
-    free(true_label);
-  if (next_label && !attrs->next_label)
-    free(next_label);
-
-  DEBUG_PRINT("Generated code for if statement");
-  return true;
-}
-
-/**
- * @brief Generate code for an if-else statement
- */
-bool codegen_if_else_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
-                          CodeAttributes *attrs) {
-  if (!gen || !node || !attrs) {
-    return false;
-  }
-
-  /* Check node type */
-  if (node->type != NODE_IF_ELSE) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected if-else node, got %d", node->type);
-    return false;
-  }
-
-  /* Generate labels */
-  char *true_label = label_manager_new_label(gen->label_manager);
-  char *false_label = label_manager_new_label(gen->label_manager);
-  char *next_label = attrs->next_label
-                         ? safe_strdup(attrs->next_label)
-                         : label_manager_new_label(gen->label_manager);
-
-  /* Generate code for condition (child 0) */
+  /* Generate code for condition */
   CodeAttributes cond_attrs;
   memset(&cond_attrs, 0, sizeof(CodeAttributes));
   cond_attrs.true_label = true_label;
   cond_attrs.false_label = false_label;
 
-  if (!codegen_condition(gen, node->children[0], &cond_attrs)) {
+  if (!codegen_condition_ast(gen, node->if_stmt.condition, &cond_attrs)) {
     if (true_label)
       free(true_label);
-    if (false_label)
-      free(false_label);
     if (next_label && !attrs->next_label)
       free(next_label);
+    if (false_label && false_label != next_label)
+      free(false_label);
     return false;
   }
 
   /* Add true label */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL,
-                       node->lineno);
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
 
-  /* Generate code for then part (child 1) */
+  /* Generate code for then part */
   CodeAttributes then_attrs;
   memset(&then_attrs, 0, sizeof(CodeAttributes));
   then_attrs.next_label = next_label;
 
-  if (!codegen_stmt(gen, node->children[1], &then_attrs)) {
+  if (!codegen_stmt_ast(gen, node->if_stmt.then_branch, &then_attrs)) {
     if (true_label)
       free(true_label);
-    if (false_label)
-      free(false_label);
     if (next_label && !attrs->next_label)
       free(next_label);
+    if (false_label && false_label != next_label)
+      free(false_label);
     return false;
   }
 
-  /* Add goto next after then part */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL,
-                       node->lineno);
+  /* Handle else part if it exists */
+  if (node->if_stmt.else_branch) {
+    /* Add goto next after then part */
+    tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL, 0);
 
-  /* Add false label */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
-                       node->lineno);
+    /* Add false label */
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
+                         0);
 
-  /* Generate code for else part (child 2) */
-  CodeAttributes else_attrs;
-  memset(&else_attrs, 0, sizeof(CodeAttributes));
-  else_attrs.next_label = next_label;
+    /* Generate code for else part */
+    CodeAttributes else_attrs;
+    memset(&else_attrs, 0, sizeof(CodeAttributes));
+    else_attrs.next_label = next_label;
 
-  if (!codegen_stmt(gen, node->children[2], &else_attrs)) {
-    if (true_label)
-      free(true_label);
-    if (false_label)
-      free(false_label);
-    if (next_label && !attrs->next_label)
-      free(next_label);
-    return false;
+    if (!codegen_stmt_ast(gen, node->if_stmt.else_branch, &else_attrs)) {
+      if (true_label)
+        free(true_label);
+      if (next_label && !attrs->next_label)
+        free(next_label);
+      if (false_label && false_label != next_label)
+        free(false_label);
+      return false;
+    }
   }
 
   /* Add next label if it wasn't passed in */
   if (!attrs->next_label) {
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL,
-                         node->lineno);
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
   }
 
   /* Clean up */
   if (true_label)
     free(true_label);
-  if (false_label)
-    free(false_label);
   if (next_label && !attrs->next_label)
     free(next_label);
+  if (false_label && false_label != next_label)
+    free(false_label);
 
-  DEBUG_PRINT("Generated code for if-else statement");
+  DEBUG_PRINT("Generated code for if statement from AST");
   return true;
 }
 
 /**
- * @brief Generate code for a while statement
+ * @brief Generate code for a while statement from AST
  */
-bool codegen_while_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
-                        CodeAttributes *attrs) {
+bool codegen_while_stmt_ast(CodeGenerator *gen, ASTNode *node,
+                            CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
   /* Check node type */
-  if (node->type != NODE_WHILE) {
+  if (node->type != AST_WHILE_STMT) {
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expected while node, got %d", node->type);
+             "Expected AST while node, got %d", node->type);
     return false;
   }
 
@@ -497,16 +437,15 @@ bool codegen_while_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
                          : label_manager_new_label(gen->label_manager);
 
   /* Add begin label */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL,
-                       node->lineno);
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL, 0);
 
-  /* Generate code for condition (child 0) */
+  /* Generate code for condition */
   CodeAttributes cond_attrs;
   memset(&cond_attrs, 0, sizeof(CodeAttributes));
   cond_attrs.true_label = true_label;
   cond_attrs.false_label = next_label;
 
-  if (!codegen_condition(gen, node->children[0], &cond_attrs)) {
+  if (!codegen_condition_ast(gen, node->while_stmt.condition, &cond_attrs)) {
     if (begin_label)
       free(begin_label);
     if (true_label)
@@ -517,15 +456,14 @@ bool codegen_while_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
   }
 
   /* Add true label */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL,
-                       node->lineno);
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
 
-  /* Generate code for body (child 1) */
+  /* Generate code for body */
   CodeAttributes body_attrs;
   memset(&body_attrs, 0, sizeof(CodeAttributes));
   body_attrs.next_label = begin_label;
 
-  if (!codegen_stmt(gen, node->children[1], &body_attrs)) {
+  if (!codegen_stmt_ast(gen, node->while_stmt.body, &body_attrs)) {
     if (begin_label)
       free(begin_label);
     if (true_label)
@@ -536,13 +474,11 @@ bool codegen_while_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
   }
 
   /* Add goto begin after body */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL,
-                       node->lineno);
+  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL, 0);
 
   /* Add next label if it wasn't passed in */
   if (!attrs->next_label) {
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL,
-                         node->lineno);
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
   }
 
   /* Clean up */
@@ -553,61 +489,61 @@ bool codegen_while_stmt(CodeGenerator *gen, SyntaxTreeNode *node,
   if (next_label && !attrs->next_label)
     free(next_label);
 
-  DEBUG_PRINT("Generated code for while statement");
+  DEBUG_PRINT("Generated code for while statement from AST");
   return true;
 }
 
 /**
- * @brief Generate code for a condition
+ * @brief Generate code for a condition from AST
  */
-bool codegen_condition(CodeGenerator *gen, SyntaxTreeNode *node,
-                       CodeAttributes *attrs) {
+bool codegen_condition_ast(CodeGenerator *gen, ASTNode *node,
+                           CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
-  /* Check for relational operator type */
-  TACOpType op_type;
+  /* Check for binary expression with comparison operator */
+  if (node->type != AST_BINARY_EXPR) {
+    gen->has_error = true;
+    snprintf(gen->error_message, sizeof(gen->error_message),
+             "Expected AST binary expression for condition, got %d",
+             node->type);
+    return false;
+  }
 
-  switch (node->type) {
-  case NODE_EQ:
+  /* Determine comparison operator type */
+  TACOpType op_type;
+  switch (node->binary_expr.op) {
+  case OP_EQ:
     op_type = TAC_OP_EQ;
     break;
-  case NODE_NE:
-    op_type = TAC_OP_NE;
-    break;
-  case NODE_LT:
+  case OP_LT:
     op_type = TAC_OP_LT;
     break;
-  case NODE_LE:
-    op_type = TAC_OP_LE;
-    break;
-  case NODE_GT:
+  case OP_GT:
     op_type = TAC_OP_GT;
-    break;
-  case NODE_GE:
-    op_type = TAC_OP_GE;
     break;
   default:
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Unknown condition type: %d", node->type);
+             "Unsupported operator type in condition: %d",
+             node->binary_expr.op);
     return false;
   }
 
-  /* Generate code for left operand (child 0) */
+  /* Generate code for left operand */
   CodeAttributes left_attrs;
   memset(&left_attrs, 0, sizeof(CodeAttributes));
 
-  if (!codegen_expression(gen, node->children[0], &left_attrs)) {
+  if (!codegen_expression_ast(gen, node->binary_expr.left, &left_attrs)) {
     return false;
   }
 
-  /* Generate code for right operand (child 1) */
+  /* Generate code for right operand */
   CodeAttributes right_attrs;
   memset(&right_attrs, 0, sizeof(CodeAttributes));
 
-  if (!codegen_expression(gen, node->children[1], &right_attrs)) {
+  if (!codegen_expression_ast(gen, node->binary_expr.right, &right_attrs)) {
     if (left_attrs.place)
       free(left_attrs.place);
     return false;
@@ -615,11 +551,11 @@ bool codegen_condition(CodeGenerator *gen, SyntaxTreeNode *node,
 
   /* Add conditional jump instruction */
   tac_program_add_inst(gen->program, op_type, attrs->true_label,
-                       left_attrs.place, right_attrs.place, node->lineno);
+                       left_attrs.place, right_attrs.place, 0);
 
   /* Add jump to false label */
   tac_program_add_inst(gen->program, TAC_OP_GOTO, attrs->false_label, NULL,
-                       NULL, node->lineno);
+                       NULL, 0);
 
   /* Clean up */
   if (left_attrs.place)
@@ -627,218 +563,135 @@ bool codegen_condition(CodeGenerator *gen, SyntaxTreeNode *node,
   if (right_attrs.place)
     free(right_attrs.place);
 
-  DEBUG_PRINT("Generated code for condition");
+  DEBUG_PRINT("Generated code for condition from AST");
   return true;
 }
 
 /**
- * @brief Generate code for an expression
+ * @brief Generate code for an expression from AST
  */
-bool codegen_expression(CodeGenerator *gen, SyntaxTreeNode *node,
-                        CodeAttributes *attrs) {
+bool codegen_expression_ast(CodeGenerator *gen, ASTNode *node,
+                            CodeAttributes *attrs) {
   if (!gen || !node || !attrs) {
     return false;
   }
 
   /* Handle different expression types */
   switch (node->type) {
-  case NODE_ADD:
-  case NODE_SUB:
+  case AST_BINARY_EXPR: {
     /* Binary operation */
-    {
-      /* Generate code for left operand (child 0) */
-      CodeAttributes left_attrs;
-      memset(&left_attrs, 0, sizeof(CodeAttributes));
+    BinaryOpType op = node->binary_expr.op;
+    TACOpType tac_op;
 
-      if (!codegen_expression(gen, node->children[0], &left_attrs)) {
-        return false;
-      }
+    /* Map binary operator types to TAC operator types */
+    switch (op) {
+    case OP_ADD:
+      tac_op = TAC_OP_ADD;
+      break;
+    case OP_SUB:
+      tac_op = TAC_OP_SUB;
+      break;
+    case OP_MUL:
+      tac_op = TAC_OP_MUL;
+      break;
+    case OP_DIV:
+      tac_op = TAC_OP_DIV;
+      break;
+    default:
+      gen->has_error = true;
+      snprintf(gen->error_message, sizeof(gen->error_message),
+               "Unsupported binary operator in expression: %d", op);
+      return false;
+    }
 
-      /* Generate code for right operand (child 1) */
-      CodeAttributes right_attrs;
-      memset(&right_attrs, 0, sizeof(CodeAttributes));
+    /* Generate code for left operand */
+    CodeAttributes left_attrs;
+    memset(&left_attrs, 0, sizeof(CodeAttributes));
 
-      if (!codegen_term(gen, node->children[1], &right_attrs)) {
-        if (left_attrs.place)
-          free(left_attrs.place);
-        return false;
-      }
+    if (!codegen_expression_ast(gen, node->binary_expr.left, &left_attrs)) {
+      return false;
+    }
 
-      /* Create temporary for result */
-      char *temp = symbol_table_new_temp(gen->symbol_table);
-      if (!temp) {
-        if (left_attrs.place)
-          free(left_attrs.place);
-        if (right_attrs.place)
-          free(right_attrs.place);
-        return false;
-      }
+    /* Generate code for right operand */
+    CodeAttributes right_attrs;
+    memset(&right_attrs, 0, sizeof(CodeAttributes));
 
-      /* Add operation instruction */
-      TACOpType op_type = (node->type == NODE_ADD) ? TAC_OP_ADD : TAC_OP_SUB;
-      tac_program_add_inst(gen->program, op_type, temp, left_attrs.place,
-                           right_attrs.place, node->lineno);
+    if (!codegen_expression_ast(gen, node->binary_expr.right, &right_attrs)) {
+      if (left_attrs.place)
+        free(left_attrs.place);
+      return false;
+    }
 
-      /* Set return attributes */
-      attrs->place = temp;
-
-      /* Clean up */
+    /* Create temporary for result */
+    char *temp = symbol_table_new_temp(gen->symbol_table);
+    if (!temp) {
       if (left_attrs.place)
         free(left_attrs.place);
       if (right_attrs.place)
         free(right_attrs.place);
-
-      DEBUG_PRINT("Generated code for binary expression: %s",
-                  (node->type == NODE_ADD) ? "ADD" : "SUB");
-      return true;
+      return false;
     }
 
-  case NODE_TERM:
-    /* Term */
-    return codegen_term(gen, node, attrs);
+    /* Add operation instruction */
+    tac_program_add_inst(gen->program, tac_op, temp, left_attrs.place,
+                         right_attrs.place, 0);
 
-  default:
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Unknown expression type: %d", node->type);
-    return false;
-  }
-}
+    /* Set return attributes */
+    attrs->place = temp;
 
-/**
- * @brief Generate code for a term
- */
-bool codegen_term(CodeGenerator *gen, SyntaxTreeNode *node,
-                  CodeAttributes *attrs) {
-  if (!gen || !node || !attrs) {
-    return false;
+    /* Clean up */
+    if (left_attrs.place)
+      free(left_attrs.place);
+    if (right_attrs.place)
+      free(right_attrs.place);
+
+    DEBUG_PRINT("Generated code for binary expression from AST");
+    return true;
   }
 
-  /* Handle different term types */
-  switch (node->type) {
-  case NODE_MUL:
-  case NODE_DIV:
-    /* Binary operation */
-    {
-      /* Generate code for left operand (child 0) */
-      CodeAttributes left_attrs;
-      memset(&left_attrs, 0, sizeof(CodeAttributes));
-
-      if (!codegen_term(gen, node->children[0], &left_attrs)) {
-        return false;
-      }
-
-      /* Generate code for right operand (child 1) */
-      CodeAttributes right_attrs;
-      memset(&right_attrs, 0, sizeof(CodeAttributes));
-
-      if (!codegen_factor(gen, node->children[1], &right_attrs)) {
-        if (left_attrs.place)
-          free(left_attrs.place);
-        return false;
-      }
-
-      /* Create temporary for result */
-      char *temp = symbol_table_new_temp(gen->symbol_table);
-      if (!temp) {
-        if (left_attrs.place)
-          free(left_attrs.place);
-        if (right_attrs.place)
-          free(right_attrs.place);
-        return false;
-      }
-
-      /* Add operation instruction */
-      TACOpType op_type = (node->type == NODE_MUL) ? TAC_OP_MUL : TAC_OP_DIV;
-      tac_program_add_inst(gen->program, op_type, temp, left_attrs.place,
-                           right_attrs.place, node->lineno);
-
-      /* Set return attributes */
-      attrs->place = temp;
-
-      /* Clean up */
-      if (left_attrs.place)
-        free(left_attrs.place);
-      if (right_attrs.place)
-        free(right_attrs.place);
-
-      DEBUG_PRINT("Generated code for binary term: %s",
-                  (node->type == NODE_MUL) ? "MUL" : "DIV");
-      return true;
-    }
-
-  case NODE_FACTOR:
-    /* Factor */
-    return codegen_factor(gen, node, attrs);
-
-  default:
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Unknown term type: %d", node->type);
-    return false;
-  }
-}
-
-/**
- * @brief Generate code for a factor
- */
-bool codegen_factor(CodeGenerator *gen, SyntaxTreeNode *node,
-                    CodeAttributes *attrs) {
-  if (!gen || !node || !attrs) {
-    return false;
-  }
-
-  /* Handle different factor types */
-  switch (node->type) {
-  case NODE_IDENTIFIER:
+  case AST_VARIABLE: {
     /* Variable reference */
-    {
-      const char *var_name = node->value.string_val;
+    const char *var_name = node->variable.name;
 
-      /* Check if variable exists in symbol table */
-      Symbol *symbol = symbol_table_lookup(gen->symbol_table, var_name);
-      if (!symbol) {
-        /* Add variable to symbol table */
-        if (!symbol_table_add(gen->symbol_table, var_name, SYMBOL_VARIABLE,
-                              NULL)) {
-          gen->has_error = true;
-          snprintf(gen->error_message, sizeof(gen->error_message),
-                   "Failed to add variable '%s' to symbol table", var_name);
-          return false;
-        }
+    /* Check if variable exists in symbol table */
+    Symbol *symbol = symbol_table_lookup(gen->symbol_table, var_name);
+    if (!symbol) {
+      /* Add variable to symbol table */
+      if (!symbol_table_add(gen->symbol_table, var_name, SYMBOL_VARIABLE,
+                            NULL)) {
+        gen->has_error = true;
+        snprintf(gen->error_message, sizeof(gen->error_message),
+                 "Failed to add variable '%s' to symbol table", var_name);
+        return false;
       }
-
-      /* Set return attributes */
-      attrs->place = safe_strdup(var_name);
-
-      DEBUG_PRINT("Generated code for identifier: %s", var_name);
-      return true;
     }
 
-  case NODE_INT_LITERAL:
+    /* Set return attributes */
+    attrs->place = safe_strdup(var_name);
+
+    DEBUG_PRINT("Generated code for variable reference: %s", var_name);
+    return true;
+  }
+
+  case AST_CONSTANT: {
     /* Integer literal */
-    {
-      char value_str[32];
-      int value = node->value.int_val;
+    char value_str[32];
+    int value = node->constant.value;
 
-      /* Convert value to string */
-      snprintf(value_str, sizeof(value_str), "%d", value);
+    /* Convert value to string */
+    snprintf(value_str, sizeof(value_str), "%d", value);
 
-      /* Set return attributes */
-      attrs->place = safe_strdup(value_str);
+    /* Set return attributes */
+    attrs->place = safe_strdup(value_str);
 
-      DEBUG_PRINT("Generated code for integer literal: %d", value);
-      return true;
-    }
-
-  case NODE_EXPRESSION:
-    /* Parenthesized expression */
-    return codegen_expression(gen, node->children[0], attrs);
+    DEBUG_PRINT("Generated code for constant: %d", value);
+    return true;
+  }
 
   default:
     gen->has_error = true;
     snprintf(gen->error_message, sizeof(gen->error_message),
-             "Unknown factor type: %d", node->type);
+             "Unknown AST expression type: %d", node->type);
     return false;
   }
 }

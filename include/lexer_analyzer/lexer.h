@@ -8,7 +8,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "common.h" /* Include generated Kconfig configuration */
+#include "common.h"
 #include "lexer_analyzer/token.h"
 #include <stdbool.h>
 

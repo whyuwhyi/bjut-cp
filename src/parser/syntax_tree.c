@@ -229,6 +229,16 @@ static void print_syntax_tree_node(const SyntaxTreeNode *node, int indent) {
 }
 
 /**
+ * @brief Get the root node of a syntax tree
+ */
+SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree) {
+  if (!tree) {
+    return NULL;
+  }
+  return tree->root;
+}
+
+/**
  * @brief Print the syntax tree to stdout
  */
 void syntax_tree_print(const SyntaxTree *tree) {

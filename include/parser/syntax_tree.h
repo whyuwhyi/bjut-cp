@@ -112,6 +112,14 @@ void syntax_tree_add_child(SyntaxTreeNode *parent, SyntaxTreeNode *child);
 void syntax_tree_set_root(SyntaxTree *tree, SyntaxTreeNode *root);
 
 /**
+ * @brief Get the root node of a syntax tree
+ *
+ * @param tree Syntax tree
+ * @return SyntaxTreeNode* Root node or NULL if tree is empty
+ */
+SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree);
+
+/**
  * @brief Print the syntax tree to stdout
  *
  * @param tree Tree to print

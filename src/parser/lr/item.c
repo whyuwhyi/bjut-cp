@@ -19,6 +19,8 @@ LRItem *lr_item_create(int production_id, int dot_position, int *lookaheads,
     return NULL;
   }
 
+  memset(item, 0, sizeof *item);
+
   item->production_id = production_id;
   item->dot_position = dot_position;
   item->lookaheads = NULL;
@@ -79,12 +81,26 @@ bool lr_item_equals(LRItem *item1, LRItem *item2) {
  * @brief Compare two LR items including lookaheads
  */
 bool lr_item_equals_with_lookaheads(LRItem *item1, LRItem *item2) {
+  if (!item1 || !item2) {
+    return false;
+  }
+
   if (!lr_item_equals(item1, item2)) {
     return false;
   }
 
   if (item1->lookahead_count != item2->lookahead_count) {
     return false;
+  }
+
+  // Check if either item has no lookaheads
+  if (item1->lookahead_count == 0 && item2->lookahead_count == 0) {
+    return true;
+  }
+
+  // Ensure both lookahead arrays are valid before comparing
+  if (!item1->lookaheads || !item2->lookaheads) {
+    return item1->lookaheads == item2->lookaheads;
   }
 
   for (int i = 0; i < item1->lookahead_count; i++) {

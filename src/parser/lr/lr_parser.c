@@ -262,7 +262,7 @@ LRState *lr_goto(LRAutomaton *automaton, LRState *state, int symbol_id) {
         /* Create a new item with dot advanced */
         LRItem *new_item;
 
-        if (curr_item->lookahead_count > 0) {
+        if (curr_item->lookahead_count > 0 && curr_item->lookaheads) {
           /* Copy lookaheads for LR(1) items */
           new_item = lr_item_create(
               curr_item->production_id, curr_item->dot_position + 1,
@@ -319,7 +319,10 @@ LRState *lr_goto(LRAutomaton *automaton, LRState *state, int symbol_id) {
   }
 
   /* Add new state to automaton */
-  automaton->states[automaton->state_count++] = new_state;
+  if (!lr_automaton_add_state(automaton, new_state)) {
+    lr_state_destroy(new_state);
+    return NULL;
+  }
 
   return new_state;
 }

@@ -31,8 +31,7 @@ LEXER_SRCS       := src$(SEP)lexer_analyzer$(SEP)token.c \
 LEXER_MAIN_SRC   := src$(SEP)lexer_main.c
 
 # Parser source files
-PARSER_SRCS      := src$(SEP)parser$(SEP)ast.c \
-                    src$(SEP)parser$(SEP)grammar.c \
+PARSER_SRCS      := src$(SEP)parser$(SEP)grammar.c \
                     src$(SEP)parser$(SEP)parser.c \
                     src$(SEP)parser$(SEP)parser_common.c \
                     src$(SEP)parser$(SEP)syntax_tree.c \
