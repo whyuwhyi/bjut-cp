@@ -21,7 +21,6 @@ OBJ_DIR   := $(BUILD_DIR)$(SEP)obj
 
 # Files
 SRC       := generator.c
-HDR       := generator.h
 OBJ       := $(OBJ_DIR)$(SEP)generator.o
 EXEC      := $(BUILD_DIR)$(SEP)generator$(EXEEXT)
 
@@ -36,7 +35,7 @@ $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $<
 
 # Compile object
-$(OBJ): $(SRC) $(HDR)
+$(OBJ): $(SRC)
 	@echo Compiling $<
 	@$(MKDIR) $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c generator.c -o $@

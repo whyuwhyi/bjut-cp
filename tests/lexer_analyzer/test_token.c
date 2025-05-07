@@ -4,7 +4,7 @@
  */
 
 #include "common.h"
-#include "lexer-analyzer/token.h"
+#include "lexer_analyzer/token.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

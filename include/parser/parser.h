@@ -7,8 +7,8 @@
 #define PARSER_H
 
 #include "common.h"
-#include "lexer-analyzer/lexer.h"
-#include "parser/syntax_tree.h"
+#include "lexer_analyzer/lexer.h"
+#include "syntax_tree.h"
 #include <stdbool.h>
 
 /**

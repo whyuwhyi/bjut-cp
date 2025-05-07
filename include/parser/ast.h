@@ -7,7 +7,7 @@
 #define AST_H
 
 #include "common.h"
-#include "lexer-analyzer/token.h"
+#include "lexer_analyzer/token.h"
 #include <stdbool.h>
 
 /**

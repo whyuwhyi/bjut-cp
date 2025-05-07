@@ -3,7 +3,7 @@
  * @brief Implementation of token functions
  */
 
-#include "lexer-analyzer/token.h"
+#include "lexer_analyzer/token.h"
 #include <stdio.h>
 #include <string.h>
 

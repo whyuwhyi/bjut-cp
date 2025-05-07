@@ -6,8 +6,7 @@
 #ifndef RD_PARSER_H
 #define RD_PARSER_H
 
-#include "../grammar.h"
-#include "parser/parser.h"
+#include "../parser_common.h"
 
 /**
  * @brief Recursive descent parser data

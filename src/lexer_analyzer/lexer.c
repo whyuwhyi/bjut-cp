@@ -1,4 +1,4 @@
-#include "lexer-analyzer/lexer.h"
+#include "lexer_analyzer/lexer.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>

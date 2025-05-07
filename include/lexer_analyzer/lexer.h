@@ -8,7 +8,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "lexer-analyzer/token.h"
+#include "lexer_analyzer/token.h"
 #include <regex.h>
 #include <stdbool.h>
 

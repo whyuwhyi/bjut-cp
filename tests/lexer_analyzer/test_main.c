@@ -4,7 +4,7 @@
  */
 
 #include "common.h"
-#include "lexer-analyzer/lexer.h"
+#include "lexer_analyzer/lexer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -210,7 +210,7 @@ static bool run_lexer_test(const char *sample) {
   }
 
   /* Tokenize the input */
-  printf("Testing input: %s\n", test.input);
+  printf("Testing input:\n%s\n", test.input);
   if (!lexer_tokenize(lexer, test.input)) {
     fprintf(stderr, "Tokenization failed\n");
     lexer_destroy(lexer);
@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
 
     while ((next_sample = strstr(sample + 1, "sample:")) != NULL) {
       /* Null-terminate the current sample */
-      *next_sample = '\0';
+      *(next_sample - 1) = '\0';
 
       /* Process the sample */
       sample_count++;

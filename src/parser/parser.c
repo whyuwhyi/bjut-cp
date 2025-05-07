@@ -19,52 +19,29 @@ Parser *slr1_parser_create(void);
 Parser *lr1_parser_create(void);
 
 /**
- * @brief Actual parser structure
- */
-struct Parser {
-  ParserType type;  /* Type of parser */
-  Grammar *grammar; /* Grammar for the language */
-  ProductionTracker
-      *production_tracker; /* Production tracker for leftmost derivation */
-
-  /* Methods */
-  bool (*init)(Parser *parser);                       /* Initialize parser */
-  SyntaxTree *(*parse)(Parser *parser, Lexer *lexer); /* Parse input */
-  void (*print_leftmost_derivation)(
-      Parser *parser);             /* Output leftmost derivation */
-  void (*destroy)(Parser *parser); /* Destroy parser and free resources */
-
-  /* Parser-specific data */
-  void *data; /* Parser-specific data */
-};
-
-/**
  * @brief Create a parser of the specified type
  */
 Parser *parser_create(ParserType type) {
   Parser *parser = NULL;
-
   switch (type) {
   case PARSER_TYPE_RECURSIVE_DESCENT:
     parser = rd_parser_create();
     break;
   case PARSER_TYPE_LR0:
-    fprintf(stderr, "LR(0) parser not implemented yet\n");
-    return NULL;
+    parser = lr0_parser_create();
+    break;
   case PARSER_TYPE_SLR1:
-    fprintf(stderr, "SLR(1) parser not implemented yet\n");
-    return NULL;
+    parser = slr1_parser_create();
+    break;
   case PARSER_TYPE_LR1:
-    fprintf(stderr, "LR(1) parser not implemented yet\n");
-    return NULL;
+    parser = lr1_parser_create();
+    break;
   default:
     fprintf(stderr, "Unknown parser type: %d\n", type);
     return NULL;
   }
-
   if (parser) {
     parser->type = type;
-
     /* Create grammar */
     parser->grammar = grammar_create();
     if (!parser->grammar) {
@@ -72,7 +49,6 @@ Parser *parser_create(ParserType type) {
       parser->destroy(parser);
       return NULL;
     }
-
     /* Create production tracker */
     parser->production_tracker = production_tracker_create();
     if (!parser->production_tracker) {
@@ -81,10 +57,8 @@ Parser *parser_create(ParserType type) {
       parser->destroy(parser);
       return NULL;
     }
-
     DEBUG_PRINT("Created %s parser", parser_type_to_string(type));
   }
-
   return parser;
 }
 

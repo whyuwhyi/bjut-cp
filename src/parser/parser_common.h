@@ -8,6 +8,8 @@
 
 #include "common.h"
 #include "grammar.h"
+#include "lexer_analyzer/lexer.h"
+#include "parser/parser.h"
 #include "parser/syntax_tree.h"
 #include <stdbool.h>
 
@@ -19,6 +21,27 @@ typedef struct {
   int length;               /* Length of production sequence */
   int capacity;             /* Capacity of production sequence */
 } ProductionTracker;
+
+/**
+ * @brief Actual parser structure definition (for internal use)
+ */
+struct Parser {
+  ParserType type;  /* Type of parser */
+  Grammar *grammar; /* Grammar for the language */
+  ProductionTracker
+      *production_tracker; /* Production tracker for leftmost derivation */
+
+  /* Methods */
+  bool (*init)(struct Parser *parser); /* Initialize parser */
+  SyntaxTree *(*parse)(struct Parser *parser, Lexer *lexer); /* Parse input */
+  void (*print_leftmost_derivation)(
+      struct Parser *parser); /* Output leftmost derivation */
+  void (*destroy)(
+      struct Parser *parser); /* Destroy parser and free resources */
+
+  /* Parser-specific data */
+  void *data; /* Parser-specific data */
+};
 
 /**
  * @brief Create a new production tracker
