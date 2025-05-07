@@ -32,6 +32,15 @@ LRItem *lr_item_create(int production_id, int dot_position, int *lookaheads,
                        int lookahead_count);
 
 /**
+ * @brief Convenience function to create an LR(0) item
+ *
+ * @param production_id Production ID
+ * @param dot_position Dot position
+ * @return LRItem* Created item or NULL on failure
+ */
+LRItem *lr_item_create_lr0(int production_id, int dot_position);
+
+/**
  * @brief Destroy an LR item
  *
  * @param item Item to destroy

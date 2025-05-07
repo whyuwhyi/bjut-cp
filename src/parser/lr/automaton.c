@@ -22,9 +22,18 @@ LRAutomaton *lr_automaton_create(Grammar *grammar) {
     return NULL;
   }
 
+  /* Initialize with a small initial capacity */
+  const int INITIAL_STATES_CAPACITY = 16;
+  automaton->states =
+      (LRState **)safe_malloc(INITIAL_STATES_CAPACITY * sizeof(LRState *));
+  if (!automaton->states) {
+    free(automaton);
+    return NULL;
+  }
+
   automaton->start_state = NULL;
-  automaton->states = NULL;
   automaton->state_count = 0;
+  automaton->state_capacity = INITIAL_STATES_CAPACITY;
   automaton->grammar = grammar;
 
   DEBUG_PRINT("Created LR automaton");
@@ -45,7 +54,7 @@ void lr_automaton_destroy(LRAutomaton *automaton) {
         lr_state_destroy(automaton->states[i]);
       }
     }
-    free(automaton->states);
+    free(automaton->states); // Free the states array itself
   }
 
   free(automaton);
@@ -101,6 +110,38 @@ void lr_state_destroy(LRState *state) {
 }
 
 /**
+ * @brief Add a state to the automaton
+ */
+bool lr_automaton_add_state(LRAutomaton *automaton, LRState *state) {
+  if (!automaton || !state) {
+    DEBUG_PRINT("Cannot add state: automaton or state is NULL");
+    return false;
+  }
+
+  /* Check if we need to resize */
+  if (automaton->state_count >= automaton->state_capacity) {
+    int new_capacity = automaton->state_capacity * 2;
+    LRState **new_states = (LRState **)safe_realloc(
+        automaton->states, new_capacity * sizeof(LRState *));
+
+    if (!new_states) {
+      DEBUG_PRINT("Failed to realloc states array from %d to %d elements",
+                  automaton->state_capacity, new_capacity);
+      return false;
+    }
+
+    automaton->states = new_states;
+    automaton->state_capacity = new_capacity;
+
+    DEBUG_PRINT("Expanded automaton state capacity to %d", new_capacity);
+  }
+
+  automaton->states[automaton->state_count++] = state;
+  DEBUG_PRINT("Added state %d to automaton", state->id);
+  return true;
+}
+
+/**
  * @brief Add an item to a state
  */
 bool lr_state_add_item(LRState *state, LRItem *item) {
@@ -112,12 +153,10 @@ bool lr_state_add_item(LRState *state, LRItem *item) {
   for (int i = 0; i < state->item_count; i++) {
     if (lr_item_equals(state->items[i], item)) {
       /* Add any new lookaheads */
-      if (item->lookahead_count > 0 &&
-          lr_item_add_lookaheads(state->items[i], item->lookaheads,
-                                 item->lookahead_count)) {
-        return true;
+      if (item->lookahead_count > 0) {
+        lr_item_add_lookaheads(state->items[i], item->lookaheads,
+                               item->lookahead_count);
       }
-
       return false;
     }
   }
@@ -189,13 +228,8 @@ bool lr_state_add_transition(LRState *state, int symbol_id,
   }
 
   /* Add new transition */
-  typedef struct {
-    int symbol_id;
-    LRState *state;
-  } Transition;
-
-  Transition *new_transitions = (Transition *)safe_realloc(
-      state->transitions, (state->transition_count + 1) * sizeof(Transition));
+  LRTransition *new_transitions = (LRTransition *)safe_realloc(
+      state->transitions, (state->transition_count + 1) * sizeof(LRTransition));
   if (!new_transitions) {
     return false;
   }
@@ -300,7 +334,7 @@ void lr_state_print(LRState *state, Grammar *grammar) {
     /* Find symbol name */
     for (int j = 0; j < grammar->terminals_count; j++) {
       if (grammar->terminal_indices[j] == symbol_id) {
-        symbol_name = grammar->symbols[symbol_id].name;
+        symbol_name = grammar->symbols[grammar->terminal_indices[j]].name;
         break;
       }
     }
@@ -308,7 +342,7 @@ void lr_state_print(LRState *state, Grammar *grammar) {
     if (symbol_name[0] == '\0') {
       for (int j = 0; j < grammar->nonterminals_count; j++) {
         if (grammar->nonterminal_indices[j] == symbol_id) {
-          symbol_name = grammar->symbols[symbol_id].name;
+          symbol_name = grammar->symbols[grammar->nonterminal_indices[j]].name;
           break;
         }
       }

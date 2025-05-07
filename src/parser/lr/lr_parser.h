@@ -10,6 +10,37 @@
 #include "lr_common.h"
 
 /**
+ * @brief Symbol accessor functions to standardize symbol manipulation
+ */
+
+/**
+ * @brief Get symbol ID from a symbol
+ *
+ * @param grammar Grammar containing the symbol
+ * @param symbol Symbol to get ID for
+ * @return int Symbol ID or -1 if invalid
+ */
+int get_symbol_id(Grammar *grammar, Symbol *symbol);
+
+/**
+ * @brief Check if a symbol is a terminal
+ *
+ * @param grammar Grammar containing the symbol
+ * @param symbol Symbol to check
+ * @return bool True if symbol is a terminal
+ */
+bool is_terminal_symbol(Grammar *grammar, Symbol *symbol);
+
+/**
+ * @brief Check if a symbol is a non-terminal
+ *
+ * @param grammar Grammar containing the symbol
+ * @param symbol Symbol to check
+ * @return bool True if symbol is a non-terminal
+ */
+bool is_nonterminal_symbol(Grammar *grammar, Symbol *symbol);
+
+/**
  * @brief Create an automaton closure
  *
  * @param automaton Automaton

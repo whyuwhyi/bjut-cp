@@ -2,7 +2,6 @@
  * @file parser-main.c
  * @brief Parser driver program
  */
-
 #include "common.h"
 #include "lexer_analyzer/lexer.h"
 #include "parser/parser.h"
@@ -14,11 +13,10 @@
 #include <unistd.h>
 
 /* Command-line options */
-static struct option long_options[] = {
-    {"help", no_argument, NULL, 'h'},
-    {"parser-type", required_argument, NULL, 'p'},
-    {"verbose", no_argument, NULL, 'v'},
-    {NULL, 0, NULL, 0}};
+static struct option long_options[] = {{"help", no_argument, NULL, 'h'},
+                                       {"file", required_argument, NULL, 'f'},
+                                       {"verbose", no_argument, NULL, 'v'},
+                                       {NULL, 0, NULL, 0}};
 
 /**
  * @brief Print usage information
@@ -27,67 +25,20 @@ static void print_usage(const char *program_name) {
   printf("Usage: %s [options]\n", program_name);
   printf("Options:\n");
   printf("  -h, --help                Display this help message\n");
-  printf("  -p, --parser-type TYPE    Parser type (rd, lr0, slr1, lr1) "
-         "(default: rd)\n");
+  printf("  -f, --file FILEPATH       Input file path (default: stdin)\n");
   printf("  -v, --verbose             Enable verbose output\n");
 }
 
-int main(int argc, char *argv[]) {
-  /* Parse command-line arguments */
-  ParserType parser_type = PARSER_TYPE_RECURSIVE_DESCENT;
-  bool verbose = false;
-
-  int c;
-  int option_index = 0;
-
-  while ((c = getopt_long(argc, argv, "hp:v", long_options, &option_index)) !=
-         -1) {
-    switch (c) {
-    case 'h':
-      print_usage(argv[0]);
-      return EXIT_SUCCESS;
-
-    case 'p':
-      if (strcmp(optarg, "rd") == 0) {
-        parser_type = PARSER_TYPE_RECURSIVE_DESCENT;
-      } else if (strcmp(optarg, "lr0") == 0) {
-        parser_type = PARSER_TYPE_LR0;
-      } else if (strcmp(optarg, "slr1") == 0) {
-        parser_type = PARSER_TYPE_SLR1;
-      } else if (strcmp(optarg, "lr1") == 0) {
-        parser_type = PARSER_TYPE_LR1;
-      } else {
-        fprintf(stderr, "Unknown parser type: %s\n", optarg);
-        print_usage(argv[0]);
-        return EXIT_FAILURE;
-      }
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case '?':
-      /* getopt_long already printed an error message */
-      print_usage(argv[0]);
-      return EXIT_FAILURE;
-
-    default:
-      return EXIT_FAILURE;
-    }
-  }
-
-  printf("Compiler v%s\n", PROJECT_VERSION_STRING);
-  printf("Reading source from stdin (end with Ctrl+D on Unix or Ctrl+Z on "
-         "Windows)\n");
-
-  /* Read all of stdin into one buffer */
+/**
+ * @brief Read contents from stdin into a string
+ */
+static char *read_stdin() {
   size_t capacity = 1024;
   size_t length = 0;
   char *source = malloc(capacity);
   if (!source) {
     fprintf(stderr, "Out of memory\n");
-    return EXIT_FAILURE;
+    return NULL;
   }
 
   int ch;
@@ -99,13 +50,75 @@ int main(int argc, char *argv[]) {
       if (!newbuf) {
         free(source);
         fprintf(stderr, "Out of memory\n");
-        return EXIT_FAILURE;
+        return NULL;
       }
       source = newbuf;
     }
     source[length++] = (char)ch;
   }
   source[length] = '\0'; /* Null-terminate */
+  return source;
+}
+
+int main(int argc, char *argv[]) {
+  /* Parse command-line arguments */
+  bool verbose = false;
+  char *input_file = NULL;
+  int c;
+  int option_index = 0;
+
+  while ((c = getopt_long(argc, argv, "hf:v", long_options, &option_index)) !=
+         -1) {
+    switch (c) {
+    case 'h':
+      print_usage(argv[0]);
+      return EXIT_SUCCESS;
+    case 'f':
+      input_file = optarg;
+      break;
+    case 'v':
+      verbose = true;
+      break;
+    case '?':
+      /* getopt_long already printed an error message */
+      print_usage(argv[0]);
+      return EXIT_FAILURE;
+    default:
+      return EXIT_FAILURE;
+    }
+  }
+
+  printf("Compiler v%s\n", PROJECT_VERSION_STRING);
+
+  /* Determine parser type from Kconfig settings */
+  ParserType parser_type;
+
+#ifdef CONFIG_PARSER_RECURSIVE_DESCENT
+  parser_type = PARSER_TYPE_RECURSIVE_DESCENT;
+#elif defined(CONFIG_PARSER_LR0)
+  parser_type = PARSER_TYPE_LR0;
+#elif defined(CONFIG_PARSER_SLR1)
+  parser_type = PARSER_TYPE_SLR1;
+#elif defined(CONFIG_PARSER_LR1)
+  parser_type = PARSER_TYPE_LR1;
+#else
+  parser_type = PARSER_TYPE_RECURSIVE_DESCENT; // Default
+#endif
+
+  /* Read input source */
+  char *source;
+  if (input_file) {
+    printf("Reading source from file: %s\n", input_file);
+    source = read_file(input_file);
+  } else {
+    printf("Reading source from stdin (end with Ctrl+D on Unix or Ctrl+Z on "
+           "Windows)\n");
+    source = read_stdin();
+  }
+
+  if (!source) {
+    return EXIT_FAILURE;
+  }
 
   /* Create and initialize lexer */
   Lexer *lexer = lexer_create();
@@ -117,7 +130,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Tokenize input */
-  printf("Tokenizing standard input...\n");
+  printf("Tokenizing input...\n");
   if (!lexer_tokenize(lexer, source)) {
     fprintf(stderr, "Tokenization failed\n");
     lexer_destroy(lexer);
@@ -165,19 +178,22 @@ int main(int argc, char *argv[]) {
   /* Print parsing result */
   printf("\nParsing successful!\n");
 
-  /* Print syntax tree */
-  printf("\nSyntax Tree:\n");
+  /* Print syntax tree if enabled */
+#ifdef CONFIG_OUTPUT_SYNTAX_TREE
+  printf("\n");
   syntax_tree_print(tree);
+#endif
 
-  /* Print leftmost derivation */
-  printf("\nLeftmost Derivation:\n");
+  /* Print leftmost derivation if enabled */
+#ifdef CONFIG_OUTPUT_LEFTMOST_DERIVATION
+  printf("\n");
   parser_print_leftmost_derivation(parser);
+#endif
 
   /* Clean up */
-  syntax_tree_destroy(tree);
+  // syntax_tree_destroy(tree);
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);
-
   return EXIT_SUCCESS;
 }

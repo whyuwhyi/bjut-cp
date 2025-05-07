@@ -44,6 +44,34 @@ typedef struct {
 #define INITIAL_STACK_CAPACITY 64
 
 /**
+ * @brief Get the index of a terminal in the grammar
+ *
+ * @param grammar Grammar to search in
+ * @param token TokenType to find
+ * @return int Terminal index, or -1 if not found
+ */
+int get_terminal_index(Grammar *grammar, TokenType token);
+
+/**
+ * @brief Get the index of a non-terminal in the grammar
+ *
+ * @param grammar Grammar to search in
+ * @param nonterminal_id Non-terminal ID to find
+ * @return int Non-terminal index, or -1 if not found
+ */
+int get_nonterminal_index(Grammar *grammar, int nonterminal_id);
+
+/**
+ * @brief Get the symbol ID from a grammar index
+ *
+ * @param grammar Grammar containing the symbol
+ * @param is_terminal Whether the symbol is a terminal
+ * @param index Index in the respective type's array
+ * @return int Symbol ID
+ */
+int get_symbol_id_from_index(Grammar *grammar, bool is_terminal, int index);
+
+/**
  * @brief Initialize LR parser data
  *
  * @param data Parser data to initialize

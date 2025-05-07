@@ -10,10 +10,21 @@
 #include "item.h"
 #include <stdbool.h>
 
+/* Forward declaration */
+typedef struct LRState LRState;
+
+/**
+ * @brief Transition in an LR state
+ */
+typedef struct {
+  int symbol_id;  /* Symbol ID */
+  LRState *state; /* Target state */
+} LRTransition;
+
 /**
  * @brief LR automaton state
  */
-typedef struct LRState {
+struct LRState {
   int id; /* State ID */
 
   /* Items in this state */
@@ -21,17 +32,24 @@ typedef struct LRState {
   int item_count; /* Number of items */
 
   /* Transitions from this state */
-  struct {
-    int symbol_id;         /* Symbol ID */
-    struct LRState *state; /* Target state */
-  } *transitions;
+  LRTransition *transitions;
   int transition_count; /* Number of transitions */
 
   /* Core items (for state comparison) */
   int *core_items;     /* Core item indices */
   int core_item_count; /* Number of core items */
-} LRState;
+};
 
+// /**
+//  * @brief LR automaton
+//  */
+// typedef struct {
+//   LRState *start_state; /* Start state */
+//   LRState **states;     /* All states */
+//   int state_count;      /* Number of states */
+//   Grammar *grammar;     /* Grammar for the automaton */
+// } LRAutomaton;
+//
 /**
  * @brief LR automaton
  */
@@ -39,6 +57,7 @@ typedef struct {
   LRState *start_state; /* Start state */
   LRState **states;     /* All states */
   int state_count;      /* Number of states */
+  int state_capacity;   /* Capacity of states array */
   Grammar *grammar;     /* Grammar for the automaton */
 } LRAutomaton;
 
@@ -71,6 +90,15 @@ LRState *lr_state_create(int id);
  * @param state State to destroy
  */
 void lr_state_destroy(LRState *state);
+
+/**
+ * @brief Add a state to the automaton
+ *
+ * @param automaton Automaton to add to
+ * @param state State to add
+ * @return bool Success status
+ */
+bool lr_automaton_add_state(LRAutomaton *automaton, LRState *state);
 
 /**
  * @brief Add an item to a state

@@ -26,17 +26,19 @@ OBJ_DIR          := $(BUILD_DIR)$(SEP)obj
 UNITTEST_SRCS    := src$(SEP)unittest$(SEP)unittest.c
 UTILS_SRCS       := src$(SEP)utils$(SEP)utils.c
 LEXER_SRCS       := src$(SEP)lexer_analyzer$(SEP)token.c \
-                    src$(SEP)lexer_analyzer$(SEP)lexer.c
+                    src$(SEP)lexer_analyzer$(SEP)lexer.c \
+                    src$(SEP)lexer_analyzer$(SEP)lexer_state_machine.c
 LEXER_MAIN_SRC   := src$(SEP)lexer_main.c
 
 # Parser source files
 PARSER_SRCS      := src$(SEP)parser$(SEP)ast.c \
-                    src$(SEP)parser$(SEP)syntax_tree.c \
                     src$(SEP)parser$(SEP)grammar.c \
                     src$(SEP)parser$(SEP)parser.c \
                     src$(SEP)parser$(SEP)parser_common.c \
+                    src$(SEP)parser$(SEP)syntax_tree.c \
                     src$(SEP)parser$(SEP)recursive_descent$(SEP)rd_parser.c \
                     src$(SEP)parser$(SEP)lr$(SEP)action_table.c \
+                    src$(SEP)parser$(SEP)lr$(SEP)automaton.c \
                     src$(SEP)parser$(SEP)lr$(SEP)item.c \
                     src$(SEP)parser$(SEP)lr$(SEP)lr_common.c \
                     src$(SEP)parser$(SEP)lr$(SEP)lr_parser.c \
@@ -68,7 +70,7 @@ CFLAGS           := -Wall -Wextra -O2
 LDFLAGS          :=
 
 # Main build target
-build: $(COMMON_LIB) $(LEXER_LIB) $(PARSER_LIB) $(LEXER_EXEC) $(PARSER_EXEC)
+build: $(COMMON_LIB) $(LEXER_LIB) $(LEXER_EXEC) $(PARSER_LIB) $(PARSER_EXEC)
 
 # Build common library
 $(COMMON_LIB): $(UNITTEST_OBJS) $(UTILS_OBJS)

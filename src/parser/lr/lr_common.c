@@ -10,6 +10,61 @@
 #include <string.h>
 
 /**
+ * @brief Get the index of a terminal in the grammar
+ */
+int get_terminal_index(Grammar *grammar, TokenType token) {
+  if (!grammar) {
+    return -1;
+  }
+
+  for (int i = 0; i < grammar->terminals_count; i++) {
+    if (grammar->symbols[grammar->terminal_indices[i]].token == token) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * @brief Get the index of a non-terminal in the grammar
+ */
+int get_nonterminal_index(Grammar *grammar, int nonterminal_id) {
+  if (!grammar) {
+    return -1;
+  }
+
+  for (int i = 0; i < grammar->nonterminals_count; i++) {
+    if (grammar->nonterminal_indices[i] == nonterminal_id) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * @brief Get the symbol ID from a grammar index
+ */
+int get_symbol_id_from_index(Grammar *grammar, bool is_terminal, int index) {
+  if (!grammar) {
+    return -1;
+  }
+
+  if (is_terminal) {
+    if (index >= 0 && index < grammar->terminals_count) {
+      return grammar->terminal_indices[index];
+    }
+  } else {
+    if (index >= 0 && index < grammar->nonterminals_count) {
+      return grammar->nonterminal_indices[index];
+    }
+  }
+
+  return -1;
+}
+
+/**
  * @brief Initialize LR parser data
  */
 bool lr_parser_data_init(LRParserData *data) {
@@ -207,14 +262,7 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     int current_state = data->state_stack[data->stack_top];
 
     /* Get action for current state and input symbol */
-    int terminal_idx = -1;
-    for (int i = 0; i < parser->grammar->terminals_count; i++) {
-      if (parser->grammar->symbols[parser->grammar->terminal_indices[i]]
-              .token == token->type) {
-        terminal_idx = i;
-        break;
-      }
-    }
+    int terminal_idx = get_terminal_index(parser->grammar, token->type);
 
     if (terminal_idx < 0) {
       data->has_error = true;
@@ -284,7 +332,9 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
 
       /* Add children in reverse order (to maintain correct order in tree) */
       int rhs_length =
-          (prod->rhs[0].type == SYMBOL_EPSILON) ? 0 : prod->rhs_length;
+          (prod->rhs_length == 1 && prod->rhs[0].type == SYMBOL_EPSILON)
+              ? 0
+              : prod->rhs_length;
       for (int i = rhs_length - 1; i >= 0; i--) {
         syntax_tree_add_child(
             node, data->node_stack[data->stack_top - rhs_length + 1 + i]);

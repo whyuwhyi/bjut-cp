@@ -8,6 +8,28 @@ menu "Build Options"
           Enable debug output in the console.
 endmenu
 
+menu "Lexer Configuration"
+    choice
+        prompt "Lexical Analyzer Implementation"
+        default LEXER_REGEX
+        help
+          Select the implementation method for the lexical analyzer.
+
+    config LEXER_REGEX
+        bool "Regular Expression based lexer"
+        help
+          Use regular expressions to implement the lexical analyzer.
+          This approach is more declarative and easier to maintain,
+          but may be slower for some inputs.
+
+    config LEXER_STATE_MACHINE
+        bool "State Machine based lexer"
+        help
+          Use a hand-written state machine to implement the lexical analyzer.
+          This approach is typically faster but more complex to maintain.
+    endchoice
+endmenu
+
 menu "Parser Configuration"
     choice
         prompt "Parser type"

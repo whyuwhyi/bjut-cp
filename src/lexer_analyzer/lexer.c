@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef CONFIG_LEXER_REGEX
 /**
  * Default rules for lexical analysis
  */
@@ -35,6 +36,7 @@ static Rule default_rules[NR_REGEX] = {
     {"0[xX][0-9a-fA-F]*[g-zG-Z]+[0-9a-zA-Z]*", TK_ILHEX},
     {"0[xX][0-9a-fA-F]+", TK_HEX},
     {"0|[1-9][0-9]*", TK_DEC}};
+#endif
 
 /**
  * Create a new lexer
@@ -43,7 +45,11 @@ Lexer *lexer_create(void) {
   Lexer *lexer = (Lexer *)safe_malloc(sizeof(Lexer));
 
   memset(lexer, 0, sizeof(Lexer));
+
+#ifdef CONFIG_LEXER_REGEX
   memcpy(lexer->rules, default_rules, sizeof(default_rules));
+#endif
+
   lexer->initialized = false;
   lexer->nr_token = 0;
 
@@ -59,12 +65,14 @@ void lexer_destroy(Lexer *lexer) {
     return;
   }
 
+#ifdef CONFIG_LEXER_REGEX
   /* Free regex resources if initialized */
   if (lexer->initialized) {
     for (int i = 0; i < NR_REGEX; i++) {
       regfree(&lexer->re[i]);
     }
   }
+#endif
 
   DEBUG_PRINT("Lexer destroyed");
   free(lexer);
@@ -83,6 +91,7 @@ bool lexer_init(Lexer *lexer) {
     return true;
   }
 
+#ifdef CONFIG_LEXER_REGEX
   DEBUG_PRINT("Initializing lexer with %d rules", NR_REGEX);
 
   char error_msg[128];
@@ -102,6 +111,12 @@ bool lexer_init(Lexer *lexer) {
       return false;
     }
   }
+#endif
+
+#ifdef CONFIG_LEXER_STATE_MACHINE
+  DEBUG_PRINT("Initializing state machine lexer");
+  /* No specific initialization needed for state machine implementation */
+#endif
 
   lexer->initialized = true;
   DEBUG_PRINT("Lexer initialization completed successfully");
@@ -116,10 +131,39 @@ bool lexer_tokenize(Lexer *lexer, const char *input) {
     return false;
   }
 
+#ifdef CONFIG_LEXER_REGEX
+#ifdef CONFIG_LEXER_STATE_MACHINE
+  /* Log which implementation is being used */
+  DEBUG_PRINT("Using regular expression based lexer (both methods available)");
+#endif
+  return lexer_tokenize_regex(lexer, input);
+#else
+#ifdef CONFIG_LEXER_STATE_MACHINE
+  /* Only state machine implementation is available */
+  DEBUG_PRINT("Using state machine based lexer");
+  return lexer_tokenize_state_machine(lexer, input);
+#else
+  /* Neither implementation is available - configuration error */
+  fprintf(stderr, "No lexer implementation is enabled in configuration\n");
+  return false;
+#endif
+#endif
+}
+
+#ifdef CONFIG_LEXER_REGEX
+/**
+ * Tokenize an input string using regular expressions
+ */
+bool lexer_tokenize_regex(Lexer *lexer, const char *input) {
+  if (!lexer || !input || !lexer->initialized) {
+    return false;
+  }
+
   lexer->nr_token = 0;
   int position = 0;
 
-  DEBUG_PRINT("Starting tokenization of input (length: %zu)", strlen(input));
+  DEBUG_PRINT("Starting regex tokenization of input (length: %zu)",
+              strlen(input));
 
   while (input[position] != '\0') {
     bool match_found = false;
@@ -207,9 +251,11 @@ bool lexer_tokenize(Lexer *lexer, const char *input) {
     }
   }
 
-  DEBUG_PRINT("Tokenization completed: %d tokens recognized", lexer->nr_token);
+  DEBUG_PRINT("Regex tokenization completed: %d tokens recognized",
+              lexer->nr_token);
   return true;
 }
+#endif
 
 /**
  * Print all tokens in the lexer

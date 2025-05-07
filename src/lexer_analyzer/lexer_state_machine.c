@@ -144,8 +144,26 @@ bool lexer_tokenize_state_machine(Lexer *lexer, const char *input) {
               input[position + token_length] == 'X') {
             state = STATE_HEX_PREFIX;
             token_length++;
-          } else {
+          } else if (input[position + token_length] >= '0' &&
+                     input[position + token_length] <= '7') {
+            /* Only go to octal state if next char is valid octal digit */
             state = STATE_OCTAL;
+          } else if (input[position + token_length] == '\0' ||
+                     !isalnum((unsigned char)input[position + token_length])) {
+            /* Standalone 0 - add decimal token and end */
+            if (!add_token(lexer, TK_DEC, token_start, token_length,
+                           &token_value)) {
+              return false;
+            }
+            position += token_length;
+            state = STATE_END;
+          } else if (input[position + token_length] >= '8' &&
+                     input[position + token_length] <= '9') {
+            /* Invalid octal - go to invalid octal state */
+            state = STATE_INVALID_OCTAL;
+          } else {
+            /* Other non-digit character after 0 - treat as invalid */
+            state = STATE_INVALID_OCTAL;
           }
         } else if (isdigit((unsigned char)c)) {
           state = STATE_DECIMAL;
@@ -276,6 +294,10 @@ bool lexer_tokenize_state_machine(Lexer *lexer, const char *input) {
             token_value = 10 + (c - 'A');
           }
           token_length++;
+        } else if (isalnum((unsigned char)c)) {
+          /* Invalid hex character following 0x - go to invalid hex state */
+          token_length++;
+          state = STATE_INVALID_HEX;
         } else {
           /* Invalid hex (no digits after 0x) */
           if (!add_token(lexer, TK_ILHEX, token_start, token_length, NULL)) {
@@ -317,6 +339,10 @@ bool lexer_tokenize_state_machine(Lexer *lexer, const char *input) {
 
       case STATE_INVALID_OCTAL:
         if (isdigit((unsigned char)c)) {
+          /* Continue consuming digits for invalid octal */
+          token_length++;
+        } else if (isalpha((unsigned char)c)) {
+          /* If letters appear after invalid octal digits, keep consuming */
           token_length++;
         } else {
           /* End of invalid octal */
@@ -330,6 +356,7 @@ bool lexer_tokenize_state_machine(Lexer *lexer, const char *input) {
 
       case STATE_INVALID_HEX:
         if (isalnum((unsigned char)c)) {
+          /* Continue consuming all alphanumeric chars for invalid hex */
           token_length++;
         } else {
           /* End of invalid hex */
