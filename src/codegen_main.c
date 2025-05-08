@@ -1,8 +1,10 @@
 /**
- * @file codegen-main.c
- * @brief Driver program for three-address code generation
+ * @file codegen_main.c
+ * @brief Driver program for three-address code generation using syntax-directed
+ * translation
  */
-#include "codegen/codegen.h"
+#include "codegen/sdt_codegen.h"
+#include "codegen/tac.h"
 #include "common.h"
 #include "lexer_analyzer/lexer.h"
 #include "parser/parser.h"
@@ -40,6 +42,7 @@ static char *read_stdin() {
     fprintf(stderr, "Out of memory\n");
     return NULL;
   }
+
   int ch;
   while ((ch = getchar()) != EOF) {
     /* Grow buffer if needed */
@@ -65,6 +68,7 @@ int main(int argc, char *argv[]) {
   char *output_file = NULL;
   int c;
   int option_index = 0;
+
   while ((c = getopt_long(argc, argv, "hf:o:", long_options, &option_index)) !=
          -1) {
     switch (c) {
@@ -155,37 +159,41 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  /* Create code generator */
-  printf("Creating code generator...\n");
-  CodeGenerator *codegen = codegen_create();
-  if (!codegen) {
-    fprintf(stderr, "Failed to create code generator\n");
+  /* Create syntax-directed translation code generator */
+  printf("Creating SDT code generator...\n");
+  SDTCodeGen *sdt_gen = sdt_codegen_create();
+  if (!sdt_gen) {
+    fprintf(stderr, "Failed to create SDT code generator\n");
     parser_destroy(parser);
     free(source);
     lexer_destroy(lexer);
     return EXIT_FAILURE;
   }
 
-  /* Initialize code generator */
-  printf("Initializing code generator...\n");
-  if (!codegen_init(codegen)) {
-    fprintf(stderr, "Failed to initialize code generator\n");
-    codegen_destroy(codegen);
+  /* Initialize SDT code generator */
+  printf("Initializing SDT code generator...\n");
+  if (!sdt_codegen_init(sdt_gen)) {
+    fprintf(stderr, "Failed to initialize SDT code generator\n");
+    sdt_codegen_destroy(sdt_gen);
     parser_destroy(parser);
     free(source);
     lexer_destroy(lexer);
     return EXIT_FAILURE;
   }
 
-  /* Generate three-address code */
+  /* Connect the SDT code generator to the parser */
+  parser->sdt_gen = sdt_gen;
+
+  /* Generate three-address code during parsing */
   printf("Generating three-address code...\n");
-  TACProgram *program = codegen_generate_from_source(codegen, lexer, parser);
+  TACProgram *program = sdt_codegen_generate(sdt_gen, parser, lexer);
   if (!program) {
     fprintf(stderr, "Failed to generate three-address code\n");
-    // if (codegen->has_error) {
-    //   fprintf(stderr, "Error: %s\n", codegen->error_message);
-    // }
-    codegen_destroy(codegen);
+    const char *error = sdt_codegen_get_error(sdt_gen);
+    if (error) {
+      fprintf(stderr, "Error: %s\n", error);
+    }
+    sdt_codegen_destroy(sdt_gen);
     parser_destroy(parser);
     free(source);
     lexer_destroy(lexer);
@@ -198,7 +206,7 @@ int main(int argc, char *argv[]) {
     if (!tac_program_write_to_file(program, output_file)) {
       fprintf(stderr, "Failed to write output to file '%s'\n", output_file);
       tac_program_destroy(program);
-      codegen_destroy(codegen);
+      sdt_codegen_destroy(sdt_gen);
       parser_destroy(parser);
       free(source);
       lexer_destroy(lexer);
@@ -211,9 +219,10 @@ int main(int argc, char *argv[]) {
 
   /* Clean up */
   tac_program_destroy(program);
-  codegen_destroy(codegen);
+  sdt_codegen_destroy(sdt_gen);
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);
+
   return EXIT_SUCCESS;
 }

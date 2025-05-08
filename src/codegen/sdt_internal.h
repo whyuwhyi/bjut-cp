@@ -6,14 +6,13 @@
 #ifndef SDT_INTERNAL_H
 #define SDT_INTERNAL_H
 
-#include "../label_manager/label_manager.h"
-#include "../symbol_table/symbol_table.h"
+#include "codegen/sdt_attributes.h"
 #include "codegen/tac.h"
-#include "sdt_actions.h"
-#include "sdt_attributes.h"
+#include "label_manager/label_manager.h"
+#include "sdt/sdt_actions.h"
+#include "symbol_table/symbol_table.h"
+#include <stdarg.h>
 #include <stdbool.h>
-
-typedef void (*SDTActionFunc)(struct SDTCodeGen *gen, SyntaxTreeNode *node);
 
 /**
  * @brief SDT code generator structure
@@ -25,10 +24,6 @@ struct SDTCodeGen {
   TACProgram *program;         /* Generated TAC program */
   SymbolTable *symbol_table;   /* Symbol table for tracking variables */
   LabelManager *label_manager; /* Label manager for generating unique labels */
-
-  /* Semantic action mapping table */
-  SDTActionFunc *action_table; /* Maps production indexes to semantic actions */
-  int action_table_size;       /* Size of the action table */
 
   /* Current attributes being processed */
   SDTAttributes *curr_attr; /* Current node's attributes */
@@ -46,7 +41,7 @@ typedef struct SDTCodeGen SDTCodeGen;
  * @param gen Code generator
  * @return char* Temporary variable name, or NULL on failure
  */
-char *sdt_new_temp(struct SDTCodeGen *gen);
+char *sdt_new_temp(SDTCodeGen *gen);
 
 /**
  * @brief Generate a new label
@@ -54,7 +49,7 @@ char *sdt_new_temp(struct SDTCodeGen *gen);
  * @param gen Code generator
  * @return char* Label name, or NULL on failure
  */
-char *sdt_new_label(struct SDTCodeGen *gen);
+char *sdt_new_label(SDTCodeGen *gen);
 
 /**
  * @brief Generate three-address code instruction
@@ -64,7 +59,7 @@ char *sdt_new_label(struct SDTCodeGen *gen);
  * @param ... Additional arguments for the format string
  * @return char* Generated code string, or NULL on failure
  */
-char *sdt_gen_code(struct SDTCodeGen *gen, const char *format, ...);
+char *sdt_gen_code(SDTCodeGen *gen, const char *format, ...);
 
 /**
  * @brief Helper function to execute semantic action for a production
@@ -76,7 +71,7 @@ char *sdt_gen_code(struct SDTCodeGen *gen, const char *format, ...);
  * @param node Syntax tree node
  * @return bool Success status
  */
-bool sdt_execute_production_action(struct SDTCodeGen *gen, int production_id,
+bool sdt_execute_production_action(SDTCodeGen *gen, int production_id,
                                    SyntaxTreeNode *node);
 
 /**
@@ -90,9 +85,8 @@ bool sdt_execute_production_action(struct SDTCodeGen *gen, int production_id,
  * @param lineno Line number
  * @return bool Success status
  */
-bool sdt_add_instruction(struct SDTCodeGen *gen, TACOpType op,
-                         const char *result, const char *arg1, const char *arg2,
-                         int lineno);
+bool sdt_add_instruction(SDTCodeGen *gen, TACOpType op, const char *result,
+                         const char *arg1, const char *arg2, int lineno);
 
 /**
  * @brief Set error message
@@ -101,6 +95,6 @@ bool sdt_add_instruction(struct SDTCodeGen *gen, TACOpType op,
  * @param format Format string for the error message
  * @param ... Additional arguments for the format string
  */
-void sdt_set_error(struct SDTCodeGen *gen, const char *format, ...);
+void sdt_set_error(SDTCodeGen *gen, const char *format, ...);
 
 #endif /* SDT_INTERNAL_H */

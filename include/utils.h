@@ -138,4 +138,20 @@ const char *get_file_extension(const char *filename);
  */
 unsigned long file_hash(const char *filename);
 
+/**
+ * @brief Convert integer to string safely
+ *
+ * Converts an integer value to a null-terminated string using the specified
+ * base and stores the result in the provided buffer. The function ensures
+ * buffer boundaries are respected to prevent buffer overflow.
+ *
+ * @param value        The integer value to convert
+ * @param buffer       The buffer where the result will be stored
+ * @param buffer_size  The size of the buffer in bytes
+ * @param base         The base to use for conversion (e.g., 10 for decimal, 16
+ * for hex)
+ * @return             A pointer to the resulting string, or NULL on failure
+ */
+char *safe_itoa(int value, char *buffer, size_t buffer_size, int base);
+
 #endif /* UTILS_H */

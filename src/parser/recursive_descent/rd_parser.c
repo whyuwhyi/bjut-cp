@@ -3,12 +3,15 @@
  * @brief Recursive descent parser implementation
  */
 
-#include "../recursive_descent/rd_parser.h"
+#include "rd_parser.h"
 #include "../parser_common.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef CONFIG_TAC
+#include "codegen/sdt_codegen.h"
+#endif
 
 /**
  * @brief Get the current token from the lexer
@@ -138,6 +141,24 @@ static SyntaxTreeNode *parse_P(Parser *parser, RDParserData *data) {
   node->production_id = 0; /* P → L T */
   production_tracker_add(parser->production_tracker, 0);
 
+#ifdef CONFIG_TAC
+  /* Execute semantic action for this production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
+
   return node;
 }
 
@@ -170,6 +191,24 @@ static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data) {
       syntax_tree_add_child(node, t_node);
       node->production_id = 1; /* T → P T */
       production_tracker_add(parser->production_tracker, 1);
+
+#ifdef CONFIG_TAC
+      /* Execute semantic action for this production */
+      if (parser->sdt_gen) {
+        if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+          data->has_error = true;
+          const char *error = sdt_codegen_get_error(parser->sdt_gen);
+          if (error) {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed: %s", error);
+          } else {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed");
+          }
+          // return NULL;
+        }
+      }
+#endif
       return node;
     }
   }
@@ -187,6 +226,24 @@ static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data) {
   if (epsilon) {
     syntax_tree_add_child(node, epsilon);
   }
+
+#ifdef CONFIG_TAC
+  /* Execute semantic action for epsilon production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
 
   return node;
 }
@@ -228,6 +285,24 @@ static SyntaxTreeNode *parse_L(Parser *parser, RDParserData *data) {
 
   node->production_id = 3; /* L → S ; */
   production_tracker_add(parser->production_tracker, 3);
+
+#ifdef CONFIG_TAC
+  /* Execute semantic action for this production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
   return node;
 }
 
@@ -267,6 +342,26 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
           syntax_tree_add_child(node, e_node);
           node->production_id = 4; /* S → id = E */
           production_tracker_add(parser->production_tracker, 4);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -293,6 +388,26 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
               syntax_tree_add_child(node, n_node);
               node->production_id = 5; /* S → if C then S N */
               production_tracker_add(parser->production_tracker, 5);
+
+#ifdef CONFIG_TAC
+              /* Execute semantic action for this production */
+              if (parser->sdt_gen) {
+                if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                        node)) {
+                  data->has_error = true;
+                  const char *error = sdt_codegen_get_error(parser->sdt_gen);
+                  if (error) {
+                    snprintf(data->error_message, sizeof(data->error_message),
+                             "Semantic action failed: %s", error);
+                  } else {
+                    snprintf(data->error_message, sizeof(data->error_message),
+                             "Semantic action failed");
+                  }
+                  // return NULL;
+                }
+              }
+#endif
+
               return node;
             }
           }
@@ -317,6 +432,26 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
             syntax_tree_add_child(node, s_node);
             node->production_id = 6; /* S → while C do S */
             production_tracker_add(parser->production_tracker, 6);
+
+#ifdef CONFIG_TAC
+            /* Execute semantic action for this production */
+            if (parser->sdt_gen) {
+              if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                      node)) {
+                data->has_error = true;
+                const char *error = sdt_codegen_get_error(parser->sdt_gen);
+                if (error) {
+                  snprintf(data->error_message, sizeof(data->error_message),
+                           "Semantic action failed: %s", error);
+                } else {
+                  snprintf(data->error_message, sizeof(data->error_message),
+                           "Semantic action failed");
+                }
+                // return NULL;
+              }
+            }
+#endif
+
             return node;
           }
         }
@@ -337,6 +472,26 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
         if (match_token(data, TK_END, node, "end")) {
           node->production_id = 7; /* S → begin L end */
           production_tracker_add(parser->production_tracker, 7);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -382,6 +537,25 @@ static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data) {
     if (epsilon) {
       syntax_tree_add_child(node, epsilon);
     }
+
+#ifdef CONFIG_TAC
+    /* Execute semantic action for epsilon production */
+    if (parser->sdt_gen) {
+      if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+        data->has_error = true;
+        const char *error = sdt_codegen_get_error(parser->sdt_gen);
+        if (error) {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed: %s", error);
+        } else {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed");
+        }
+        // return NULL;
+      }
+    }
+#endif
+
     return node;
   }
 
@@ -393,6 +567,25 @@ static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, s_node);
         node->production_id = 8; /* N → else S */
         production_tracker_add(parser->production_tracker, 8);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
+
         return node;
       }
     }
@@ -408,6 +601,24 @@ static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data) {
 
   /* Reset error flag as this is a valid epsilon production */
   data->has_error = false;
+
+#ifdef CONFIG_TAC
+  /* Execute semantic action for epsilon production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
 
   return node;
 }
@@ -449,6 +660,26 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         if (match_token(data, TK_SRP, node, ")")) {
           node->production_id = 16; /* C → ( C ) */
           production_tracker_add(parser->production_tracker, 16);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -485,6 +716,24 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 10; /* C → E > E */
         production_tracker_add(parser->production_tracker, 10);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
         return node;
       }
     }
@@ -496,6 +745,25 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 11; /* C → E < E */
         production_tracker_add(parser->production_tracker, 11);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
+
         return node;
       }
     }
@@ -507,6 +775,24 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 12; /* C → E = E */
         production_tracker_add(parser->production_tracker, 12);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
         return node;
       }
     }
@@ -518,6 +804,25 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 13; /* C → E >= E */
         production_tracker_add(parser->production_tracker, 13);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
+
         return node;
       }
     }
@@ -529,6 +834,25 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 14; /* C → E <= E */
         production_tracker_add(parser->production_tracker, 14);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
+
         return node;
       }
     }
@@ -540,6 +864,25 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, right_e_node);
         node->production_id = 15; /* C → E <> E */
         production_tracker_add(parser->production_tracker, 15);
+
+#ifdef CONFIG_TAC
+        /* Execute semantic action for this production */
+        if (parser->sdt_gen) {
+          if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+            data->has_error = true;
+            const char *error = sdt_codegen_get_error(parser->sdt_gen);
+            if (error) {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed: %s", error);
+            } else {
+              snprintf(data->error_message, sizeof(data->error_message),
+                       "Semantic action failed");
+            }
+            // return NULL;
+          }
+        }
+#endif
+
         return node;
       }
     }
@@ -595,6 +938,24 @@ static SyntaxTreeNode *parse_E(Parser *parser, RDParserData *data) {
   node->production_id = 17; /* E → R X */
   production_tracker_add(parser->production_tracker, 17);
 
+#ifdef CONFIG_TAC
+  /* Execute semantic action for this production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
+
   return node;
 }
 
@@ -624,6 +985,25 @@ static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data) {
     if (epsilon) {
       syntax_tree_add_child(node, epsilon);
     }
+
+#ifdef CONFIG_TAC
+    /* Execute semantic action for epsilon production */
+    if (parser->sdt_gen) {
+      if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+        data->has_error = true;
+        const char *error = sdt_codegen_get_error(parser->sdt_gen);
+        if (error) {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed: %s", error);
+        } else {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed");
+        }
+        // return NULL;
+      }
+    }
+#endif
+
     return node;
   }
 
@@ -639,6 +1019,26 @@ static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data) {
           syntax_tree_add_child(node, x_node);
           node->production_id = 18; /* X → + R X */
           production_tracker_add(parser->production_tracker, 18);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -655,6 +1055,26 @@ static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data) {
           syntax_tree_add_child(node, x_node);
           node->production_id = 19; /* X → - R X */
           production_tracker_add(parser->production_tracker, 19);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -671,6 +1091,24 @@ static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data) {
 
   /* Reset error flag as this is a valid epsilon production */
   data->has_error = false;
+
+#ifdef CONFIG_TAC
+  /* Execute semantic action for epsilon production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
 
   return node;
 }
@@ -715,6 +1153,24 @@ static SyntaxTreeNode *parse_R(Parser *parser, RDParserData *data) {
   node->production_id = 21; /* R → F Y */
   production_tracker_add(parser->production_tracker, 21);
 
+#ifdef CONFIG_TAC
+  /* Execute semantic action for this production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
+
   return node;
 }
 
@@ -744,6 +1200,25 @@ static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data) {
     if (epsilon) {
       syntax_tree_add_child(node, epsilon);
     }
+
+#ifdef CONFIG_TAC
+    /* Execute semantic action for epsilon production */
+    if (parser->sdt_gen) {
+      if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+        data->has_error = true;
+        const char *error = sdt_codegen_get_error(parser->sdt_gen);
+        if (error) {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed: %s", error);
+        } else {
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Semantic action failed");
+        }
+        // return NULL;
+      }
+    }
+#endif
+
     return node;
   }
 
@@ -759,6 +1234,26 @@ static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data) {
           syntax_tree_add_child(node, y_node);
           node->production_id = 22; /* Y → * F Y */
           production_tracker_add(parser->production_tracker, 22);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -775,6 +1270,26 @@ static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data) {
           syntax_tree_add_child(node, y_node);
           node->production_id = 23; /* Y → / F Y */
           production_tracker_add(parser->production_tracker, 23);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -791,6 +1306,24 @@ static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data) {
 
   /* Reset error flag as this is a valid epsilon production */
   data->has_error = false;
+
+#ifdef CONFIG_TAC
+  /* Execute semantic action for epsilon production */
+  if (parser->sdt_gen) {
+    if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+      data->has_error = true;
+      const char *error = sdt_codegen_get_error(parser->sdt_gen);
+      if (error) {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed: %s", error);
+      } else {
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Semantic action failed");
+      }
+      // return NULL;
+    }
+  }
+#endif
 
   return node;
 }
@@ -831,6 +1364,26 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
         if (match_token(data, TK_SRP, node, ")")) {
           node->production_id = 25; /* F → ( E ) */
           production_tracker_add(parser->production_tracker, 25);
+
+#ifdef CONFIG_TAC
+          /* Execute semantic action for this production */
+          if (parser->sdt_gen) {
+            if (!sdt_execute_action(parser->sdt_gen, node->production_id,
+                                    node)) {
+              data->has_error = true;
+              const char *error = sdt_codegen_get_error(parser->sdt_gen);
+              if (error) {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed: %s", error);
+              } else {
+                snprintf(data->error_message, sizeof(data->error_message),
+                         "Semantic action failed");
+              }
+              // return NULL;
+            }
+          }
+#endif
+
           return node;
         }
       }
@@ -840,6 +1393,25 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
     if (match_token(data, TK_IDN, node, "id")) {
       node->production_id = 26; /* F → id */
       production_tracker_add(parser->production_tracker, 26);
+
+#ifdef CONFIG_TAC
+      /* Execute semantic action for this production */
+      if (parser->sdt_gen) {
+        if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+          data->has_error = true;
+          const char *error = sdt_codegen_get_error(parser->sdt_gen);
+          if (error) {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed: %s", error);
+          } else {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed");
+          }
+          // return NULL;
+        }
+      }
+#endif
+
       return node;
     }
   } else if (token->type == TK_OCT) {
@@ -847,6 +1419,25 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
     if (match_token(data, TK_OCT, node, "int8")) {
       node->production_id = 27; /* F → int8 */
       production_tracker_add(parser->production_tracker, 27);
+
+#ifdef CONFIG_TAC
+      /* Execute semantic action for this production */
+      if (parser->sdt_gen) {
+        if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+          data->has_error = true;
+          const char *error = sdt_codegen_get_error(parser->sdt_gen);
+          if (error) {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed: %s", error);
+          } else {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed");
+          }
+          // return NULL;
+        }
+      }
+#endif
+
       return node;
     }
   } else if (token->type == TK_DEC) {
@@ -854,6 +1445,25 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
     if (match_token(data, TK_DEC, node, "int10")) {
       node->production_id = 28; /* F → int10 */
       production_tracker_add(parser->production_tracker, 28);
+
+#ifdef CONFIG_TAC
+      /* Execute semantic action for this production */
+      if (parser->sdt_gen) {
+        if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+          data->has_error = true;
+          const char *error = sdt_codegen_get_error(parser->sdt_gen);
+          if (error) {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed: %s", error);
+          } else {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed");
+          }
+          // return NULL;
+        }
+      }
+#endif
+
       return node;
     }
   } else if (token->type == TK_HEX) {
@@ -861,6 +1471,25 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
     if (match_token(data, TK_HEX, node, "int16")) {
       node->production_id = 29; /* F → int16 */
       production_tracker_add(parser->production_tracker, 29);
+
+#ifdef CONFIG_TAC
+      /* Execute semantic action for this production */
+      if (parser->sdt_gen) {
+        if (!sdt_execute_action(parser->sdt_gen, node->production_id, node)) {
+          data->has_error = true;
+          const char *error = sdt_codegen_get_error(parser->sdt_gen);
+          if (error) {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed: %s", error);
+          } else {
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Semantic action failed");
+          }
+          // return NULL;
+        }
+      }
+#endif
+
       return node;
     }
   }
@@ -888,6 +1517,7 @@ Parser *rd_parser_create(void) {
   parser->type = PARSER_TYPE_RECURSIVE_DESCENT;
   parser->grammar = NULL;
   parser->production_tracker = NULL;
+  parser->sdt_gen = NULL; /* Initialize SDT code generator to NULL */
   parser->init = rd_parser_init;
   parser->parse = rd_parser_parse;
   parser->print_leftmost_derivation = rd_parser_print_leftmost_derivation;

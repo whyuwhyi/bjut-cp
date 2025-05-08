@@ -19,6 +19,11 @@ typedef enum {
   NODE_EPSILON      /* Epsilon (empty) node */
 } NodeType;
 
+#ifdef CONFIG_TAC
+/* Forward declaration of SDTAttributes */
+struct SDTAttributes;
+#endif
+
 /**
  * @brief Syntax tree node structure
  */
@@ -35,8 +40,19 @@ typedef struct SyntaxTreeNode {
   struct SyntaxTreeNode *first_child;  /* First child node */
   struct SyntaxTreeNode *next_sibling; /* Next sibling node */
 
-  /* Production information (for non-terminals) */
+  /* Production information */
   int production_id; /* ID of the production used */
+
+#ifdef CONFIG_TAC
+  /* Semantic attributes for SDT */
+  struct SDTAttributes *attributes; /* Attributes for code generation */
+
+  /* Child nodes array for easier access during SDT */
+  struct SyntaxTreeNode **children; /* Array of child nodes */
+  int children_count;               /* Number of children */
+  int children_capacity;            /* Capacity of children array */
+#endif
+
 } SyntaxTreeNode;
 
 /**

@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include <ctype.h>
+#include <limits.h>
 
 /**
  * Safe memory allocation with error checking
@@ -230,4 +231,81 @@ unsigned long file_hash(const char *filename) {
 
   fclose(file);
   return hash;
+}
+
+/**
+ * @brief Convert integer to string safely
+ *
+ * This function safely converts an integer to a string representation
+ * with the specified base (e.g., decimal, hexadecimal).
+ */
+char *safe_itoa(int value, char *buffer, size_t buffer_size, int base) {
+  /* Check arguments */
+  if (!buffer || buffer_size == 0 || base < 2 || base > 36) {
+    return NULL;
+  }
+
+  /* Ensure buffer has space for at least one digit and null terminator */
+  if (buffer_size < 2) {
+    return NULL;
+  }
+
+  /* Handle 0 as a special case */
+  if (value == 0) {
+    buffer[0] = '0';
+    buffer[1] = '\0';
+    return buffer;
+  }
+
+  /* Handle negative numbers */
+  int is_negative = 0;
+  if (value < 0 && base == 10) {
+    is_negative = 1;
+    /* Avoid overflow when value is INT_MIN */
+    if (value == INT_MIN) {
+      /* Handle INT_MIN specially */
+      static const char int_min_str[] = "-2147483648";
+      if (buffer_size < sizeof(int_min_str)) {
+        return NULL;
+      }
+      strcpy(buffer, int_min_str);
+      return buffer;
+    }
+    value = -value;
+  }
+
+  /* Convert integer to string in reverse order */
+  static const char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  size_t pos = 0;
+  char temp_buffer[33]; /* Max 32 digits for 32-bit int in binary + null
+                           terminator */
+
+  /* Generate digits in reverse order */
+  while (value > 0 && pos < sizeof(temp_buffer) - 1) {
+    temp_buffer[pos++] = digits[value % base];
+    value /= base;
+  }
+
+  /* Check if we have enough buffer space */
+  if (pos + is_negative + 1 > buffer_size) {
+    return NULL;
+  }
+
+  /* Copy to output buffer in correct order */
+  size_t buffer_pos = 0;
+
+  /* Add negative sign if necessary */
+  if (is_negative) {
+    buffer[buffer_pos++] = '-';
+  }
+
+  /* Copy digits in correct order */
+  while (pos > 0) {
+    buffer[buffer_pos++] = temp_buffer[--pos];
+  }
+
+  /* Add null terminator */
+  buffer[buffer_pos] = '\0';
+
+  return buffer;
 }

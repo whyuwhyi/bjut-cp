@@ -21,9 +21,11 @@ all: build
 # Project directories and files
 BUILD_DIR         := build
 OBJ_DIR           := $(BUILD_DIR)$(SEP)obj
+LEXER_OBJ_DIR     := $(BUILD_DIR)$(SEP)obj_lexer
+PARSER_OBJ_DIR    := $(BUILD_DIR)$(SEP)obj_parser
+CODEGEN_OBJ_DIR   := $(BUILD_DIR)$(SEP)obj_codegen
 
 # Source files
-UNITTEST_SRCS     := src$(SEP)unittest$(SEP)unittest.c
 UTILS_SRCS        := src$(SEP)utils$(SEP)utils.c
 LEXER_SRCS        := src$(SEP)lexer_analyzer$(SEP)token.c \
                      src$(SEP)lexer_analyzer$(SEP)lexer.c \
@@ -43,95 +45,101 @@ PARSER_SRCS       := src$(SEP)parser$(SEP)grammar.c \
                      src$(SEP)parser$(SEP)lr$(SEP)lr0$(SEP)lr0_parser.c \
                      src$(SEP)parser$(SEP)lr$(SEP)lr1$(SEP)lr1_parser.c \
                      src$(SEP)parser$(SEP)lr$(SEP)slr1$(SEP)slr1_parser.c
-
 PARSER_MAIN_SRC   := src$(SEP)parser_main.c
 
-AST_SRCS          := src$(SEP)ast$(SEP)ast.c \
-                     src$(SEP)ast$(SEP)ast_builder.c
-CODEGEN_SRCS      := src$(SEP)codegen$(SEP)codegen.c \
+CODEGEN_SRCS      := src$(SEP)codegen$(SEP)sdt_codegen.c \
                      src$(SEP)codegen$(SEP)tac.c \
                      src$(SEP)codegen$(SEP)label_manager$(SEP)label_manager.c \
-                     src$(SEP)codegen$(SEP)symbol_table$(SEP)symbol_table.c
-
+                     src$(SEP)codegen$(SEP)symbol_table$(SEP)symbol_table.c \
+                     src$(SEP)codegen$(SEP)sdt$(SEP)sdt_actions.c \
+                     src$(SEP)codegen$(SEP)sdt$(SEP)sdt_attributes.c
 CODEGEN_MAIN_SRC  := src$(SEP)codegen_main.c
 
-# Object files
-UNITTEST_OBJS     := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(UNITTEST_SRCS))
-UTILS_OBJS        := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(UTILS_SRCS))
-LEXER_OBJS        := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(LEXER_SRCS))
-LEXER_MAIN_OBJ    := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(LEXER_MAIN_SRC))
-PARSER_OBJS       := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(PARSER_SRCS))
-PARSER_MAIN_OBJ   := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(PARSER_MAIN_SRC))
-AST_OBJS          := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(AST_SRCS))
-CODEGEN_OBJS      := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(CODEGEN_SRCS))
-CODEGEN_MAIN_OBJ  := $(patsubst src$(SEP)%.c,$(OBJ_DIR)$(SEP)%.o,$(CODEGEN_MAIN_SRC))
+# Object files for common components (with different compiler flags for each target)
+LEXER_COMMON_OBJS  := $(patsubst src$(SEP)%.c,$(LEXER_OBJ_DIR)$(SEP)%.o,$(UTILS_SRCS))
+PARSER_COMMON_OBJS := $(patsubst src$(SEP)%.c,$(PARSER_OBJ_DIR)$(SEP)%.o,$(UTILS_SRCS))
+CODEGEN_COMMON_OBJS := $(patsubst src$(SEP)%.c,$(CODEGEN_OBJ_DIR)$(SEP)%.o,$(UTILS_SRCS))
 
-# Libraries
-COMMON_LIB        := $(BUILD_DIR)$(SEP)libcommon.a
-LEXER_LIB         := $(BUILD_DIR)$(SEP)liblexer.a
-PARSER_LIB        := $(BUILD_DIR)$(SEP)libparser.a
-CODEGEN_LIB       := $(BUILD_DIR)$(SEP)libcodegen.a
+# Object files for lexer (built differently for each target)
+LEXER_LEXER_OBJS  := $(patsubst src$(SEP)%.c,$(LEXER_OBJ_DIR)$(SEP)%.o,$(LEXER_SRCS))
+PARSER_LEXER_OBJS := $(patsubst src$(SEP)%.c,$(PARSER_OBJ_DIR)$(SEP)%.o,$(LEXER_SRCS))
+CODEGEN_LEXER_OBJS := $(patsubst src$(SEP)%.c,$(CODEGEN_OBJ_DIR)$(SEP)%.o,$(LEXER_SRCS))
 
-# executables
-LEXER_EXEC        := $(BUILD_DIR)$(SEP)lexer$(if $(filter Windows_NT,$(OS)),.exe,)
-PARSER_EXEC       := $(BUILD_DIR)$(SEP)parser$(if $(filter Windows_NT,$(OS)),.exe,)
-CODEGEN_EXEC      := $(BUILD_DIR)$(SEP)codegen$(if $(filter Windows_NT,$(OS)),.exe,)
+# Object files for parser (built with -DCONFIG_TAC=1 for codegen only)
+PARSER_PARSER_OBJS := $(patsubst src$(SEP)%.c,$(PARSER_OBJ_DIR)$(SEP)%.o,$(PARSER_SRCS))
+CODEGEN_PARSER_OBJS := $(patsubst src$(SEP)%.c,$(CODEGEN_OBJ_DIR)$(SEP)%.o,$(PARSER_SRCS))
+
+# Object files for codegen
+CODEGEN_CODEGEN_OBJS := $(patsubst src$(SEP)%.c,$(CODEGEN_OBJ_DIR)$(SEP)%.o,$(CODEGEN_SRCS))
+
+# Main objects
+LEXER_MAIN_OBJ   := $(patsubst src$(SEP)%.c,$(LEXER_OBJ_DIR)$(SEP)%.o,$(LEXER_MAIN_SRC))
+PARSER_MAIN_OBJ  := $(patsubst src$(SEP)%.c,$(PARSER_OBJ_DIR)$(SEP)%.o,$(PARSER_MAIN_SRC))
+CODEGEN_MAIN_OBJ := $(patsubst src$(SEP)%.c,$(CODEGEN_OBJ_DIR)$(SEP)%.o,$(CODEGEN_MAIN_SRC))
+
+# Executables
+LEXER_EXEC   := $(BUILD_DIR)$(SEP)lexer$(if $(filter Windows_NT,$(OS)),.exe,)
+PARSER_EXEC  := $(BUILD_DIR)$(SEP)parser$(if $(filter Windows_NT,$(OS)),.exe,)
+CODEGEN_EXEC := $(BUILD_DIR)$(SEP)codegen$(if $(filter Windows_NT,$(OS)),.exe,)
 
 # Compiler flags
-CC                := gcc
-CFLAGS            := -Wall -Wextra -O2
-LDFLAGS           :=
+CC             := gcc
+COMMON_CFLAGS  := -Wall -Wextra -O2
+LEXER_CFLAGS   := $(COMMON_CFLAGS)
+PARSER_CFLAGS  := $(COMMON_CFLAGS)
+CODEGEN_CFLAGS := $(COMMON_CFLAGS) -DCONFIG_TAC=1
+LDFLAGS        :=
 
-# Main build target
-build: $(COMMON_LIB) $(LEXER_LIB) $(LEXER_EXEC) $(PARSER_LIB) $(PARSER_EXEC) $(CODEGEN_LIB) $(CODEGEN_EXEC)
+# Auto generate include file
+AUTOGEN_INCLUDE := include$(SEP)generated$(SEP)autoconf.h
 
-# Build common library
-$(COMMON_LIB): $(UNITTEST_OBJS) $(UTILS_OBJS)
-	@echo "Archiving common library..."
-	@$(call MKDIR,$(dir $@))
-	ar rcs $@ $^
+# Define separate build targets
+.PHONY: all build build_lexer build_parser build_codegen clean
 
-# Build lexer library
-$(LEXER_LIB): $(LEXER_OBJS)
-	@echo "Archiving lexer library..."
-	@$(call MKDIR,$(dir $@))
-	ar rcs $@ $^
+# Main build targets
+build: build_lexer build_parser build_codegen
 
-# Build parser library
-$(PARSER_LIB): $(PARSER_OBJS)
-	@echo "Archiving parser library..."
-	@$(call MKDIR,$(dir $@))
-	ar rcs $@ $^
+build_lexer: $(LEXER_EXEC)
 
-# Build codegen library
-$(CODEGEN_LIB): $(AST_OBJS) $(CODEGEN_OBJS)
-	@echo "Archiving codegen library..."
-	@$(call MKDIR,$(dir $@))
-	ar rcs $@ $^
+build_parser: $(PARSER_EXEC)
+
+build_codegen: $(CODEGEN_EXEC)
 
 # Build lexer executable
-$(LEXER_EXEC): $(LEXER_MAIN_OBJ) $(COMMON_LIB) $(LEXER_LIB)
+$(LEXER_EXEC): $(LEXER_MAIN_OBJ) $(LEXER_LEXER_OBJS) $(LEXER_COMMON_OBJS)
 	@echo "Linking lexer executable..."
 	@$(call MKDIR,$(dir $@))
-	$(CC) $(LDFLAGS) -o $@ $< -L$(BUILD_DIR) -llexer -lcommon
+	$(CC) $(LDFLAGS) -o $@ $^
 
 # Build parser executable
-$(PARSER_EXEC): $(PARSER_MAIN_OBJ) $(COMMON_LIB) $(LEXER_LIB) $(PARSER_LIB)
+$(PARSER_EXEC): $(PARSER_MAIN_OBJ) $(PARSER_PARSER_OBJS) $(PARSER_LEXER_OBJS) $(PARSER_COMMON_OBJS)
 	@echo "Linking parser executable..."
 	@$(call MKDIR,$(dir $@))
-	$(CC) $(LDFLAGS) -o $@ $< -L$(BUILD_DIR) -lparser -llexer -lcommon
+	$(CC) $(LDFLAGS) -o $@ $^
 
 # Build codegen executable
-$(CODEGEN_EXEC): $(CODEGEN_MAIN_OBJ) $(COMMON_LIB) $(LEXER_LIB) $(PARSER_LIB) $(CODEGEN_LIB)
+$(CODEGEN_EXEC): $(CODEGEN_MAIN_OBJ) $(CODEGEN_CODEGEN_OBJS) $(CODEGEN_PARSER_OBJS) $(CODEGEN_LEXER_OBJS) $(CODEGEN_COMMON_OBJS)
 	@echo "Linking codegen executable..."
 	@$(call MKDIR,$(dir $@))
-	$(CC) $(LDFLAGS) -o $@ $< -L$(BUILD_DIR) -lcodegen -lparser -llexer -lcommon
+	$(CC) $(LDFLAGS) -o $@ $^
 
-# Compile source files
-$(OBJ_DIR)$(SEP)%.o: src$(SEP)%.c
-	@echo "Compiling $<..."
+# Compile lexer source files
+$(LEXER_OBJ_DIR)$(SEP)%.o: src$(SEP)%.c $(AUTOGEN_INCLUDE)
+	@echo "Compiling $< for lexer..."
 	@$(call MKDIR,$(dir $@))
-	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+	$(CC) $(LEXER_CFLAGS) -Iinclude -c $< -o $@
+
+# Compile parser source files
+$(PARSER_OBJ_DIR)$(SEP)%.o: src$(SEP)%.c $(AUTOGEN_INCLUDE)
+	@echo "Compiling $< for parser..."
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(PARSER_CFLAGS) -Iinclude -c $< -o $@
+
+# Compile codegen source files
+$(CODEGEN_OBJ_DIR)$(SEP)%.o: src$(SEP)%.c $(AUTOGEN_INCLUDE)
+	@echo "Compiling $< for codegen..."
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(CODEGEN_CFLAGS) -Iinclude -c $< -o $@
 
 # Clean all build artifacts
 clean:
@@ -140,5 +148,3 @@ clean:
 
 SCRIPTS_DIR   := scripts
 include $(SCRIPTS_DIR)/kconfig.mk
-
-.PHONY: all build clean

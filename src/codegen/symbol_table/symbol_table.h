@@ -1,6 +1,6 @@
 /**
  * @file symbol_table.h
- * @brief Symbol table for code generation (internal)
+ * @brief Symbol table for code generation
  */
 
 #ifndef SYMBOL_TABLE_H
@@ -9,96 +9,89 @@
 #include <stdbool.h>
 
 /**
- * @brief Symbol type enumeration
+ * @brief Types of symbols in the table
  */
 typedef enum {
-  SYMBOL_VARIABLE,  /* Program variable */
-  SYMBOL_TEMPORARY, /* Compiler-generated temporary */
-  SYMBOL_CONSTANT,  /* Constant value */
-  SYMBOL_LABEL      /* Label */
-} SymbolType;
+  SYM_VARIABLE,  /* User-defined variable */
+  SYM_TEMPORARY, /* Compiler-generated temporary */
+  SYM_CONSTANT   /* Constant value */
+} SymbolTableEntryType;
 
 /**
  * @brief Symbol table entry
  */
 typedef struct {
-  char *name;      /* Symbol name */
-  SymbolType type; /* Symbol type */
-  char *value;     /* Symbol value (optional) */
-} Symbol;
+  char *name;                /* Symbol name */
+  SymbolTableEntryType type; /* Symbol type */
+  int value;                 /* Value for constants */
+  int size;                  /* Size in bytes */
+  int offset;                /* Memory offset */
+  bool initialized;          /* Initialization status */
+} SymbolTableEntry;
 
 /**
- * @brief Symbol table scope
- */
-typedef struct SymbolScope {
-  Symbol **symbols;           /* Symbols in this scope */
-  int symbol_count;           /* Number of symbols */
-  int symbol_capacity;        /* Capacity of symbols array */
-  struct SymbolScope *parent; /* Parent scope, or NULL for global scope */
-} SymbolScope;
-
-/**
- * @brief Symbol table
+ * @brief Symbol table structure
  */
 typedef struct {
-  SymbolScope *current_scope; /* Current active scope */
-  int temp_counter;           /* Counter for generating temporary names */
+  SymbolTableEntry *entries; /* Array of symbols */
+  int count;                 /* Number of symbols */
+  int capacity;              /* Capacity of the symbol array */
+  int temp_count;            /* Counter for generating temporaries */
 } SymbolTable;
 
 /**
  * @brief Create a new symbol table
  *
- * @return SymbolTable* Created symbol table, or NULL on failure
+ * @return SymbolTable* New symbol table, or NULL on failure
  */
 SymbolTable *symbol_table_create(void);
 
 /**
- * @brief Enter a new scope
+ * @brief Add a variable to the symbol table
  *
  * @param table Symbol table
+ * @param name Variable name
+ * @param size Size in bytes
  * @return bool Success status
  */
-bool symbol_table_enter_scope(SymbolTable *table);
+bool symbol_table_add_variable(SymbolTable *table, const char *name, int size);
 
 /**
- * @brief Exit the current scope
+ * @brief Add a constant to the symbol table
  *
  * @param table Symbol table
+ * @param name Constant name
+ * @param value Constant value
  * @return bool Success status
  */
-bool symbol_table_exit_scope(SymbolTable *table);
+bool symbol_table_add_constant(SymbolTable *table, const char *name, int value);
 
 /**
- * @brief Add a symbol to the current scope
+ * @brief Generate a new temporary variable
  *
  * @param table Symbol table
- * @param name Symbol name
- * @param type Symbol type
- * @param value Symbol value (can be NULL)
- * @return Symbol* Added symbol, or NULL on failure
- */
-Symbol *symbol_table_add(SymbolTable *table, const char *name, SymbolType type,
-                         const char *value);
-
-/**
- * @brief Look up a symbol in the symbol table
- *
- * @param table Symbol table
- * @param name Symbol name
- * @return Symbol* Found symbol, or NULL if not found
- */
-Symbol *symbol_table_lookup(SymbolTable *table, const char *name);
-
-/**
- * @brief Generate a new temporary variable name
- *
- * @param table Symbol table
- * @return char* Generated name, or NULL on failure
+ * @return char* Name of the temporary, or NULL on failure
  */
 char *symbol_table_new_temp(SymbolTable *table);
 
 /**
- * @brief Free symbol table resources
+ * @brief Look up a symbol by name
+ *
+ * @param table Symbol table
+ * @param name Symbol name
+ * @return SymbolTableEntry* Found symbol, or NULL if not found
+ */
+SymbolTableEntry *symbol_table_lookup(SymbolTable *table, const char *name);
+
+/**
+ * @brief Print the symbol table contents
+ *
+ * @param table Symbol table
+ */
+void symbol_table_print(const SymbolTable *table);
+
+/**
+ * @brief Destroy a symbol table and free resources
  *
  * @param table Symbol table to destroy
  */

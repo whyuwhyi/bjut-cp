@@ -11,14 +11,16 @@
  *
  * Stores both synthesized and inherited attributes for grammar symbols
  */
-typedef struct {
+struct SDTAttributes {
   char *code;        /* Generated code */
   char *place;       /* Storage location (variable or temporary) */
   char *true_label;  /* Label to jump to if condition is true */
   char *false_label; /* Label to jump to if condition is false */
   char *next_label;  /* Label for the next statement */
   char *begin_label; /* Label for the beginning of a loop */
-} SDTAttributes;
+};
+
+typedef struct SDTAttributes SDTAttributes;
 
 /**
  * @brief Create a new attributes structure

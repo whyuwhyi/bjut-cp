@@ -10,7 +10,6 @@
 #include "generated/autoconf.h"
 
 /* Include common module headers */
-#include "unittest.h"
 #include "utils.h"
 
 /* Version information */

@@ -4,6 +4,9 @@
  */
 
 #include "parser/syntax_tree.h"
+#ifdef CONFIG_TAC
+#include "codegen/sdt_attributes.h"
+#endif
 #include "parser_common.h"
 #include "utils.h"
 #include <stdio.h>
@@ -36,6 +39,18 @@ static void destroy_syntax_tree_node(SyntaxTreeNode *node) {
   if (node->symbol_name) {
     free(node->symbol_name);
   }
+
+#ifdef CONFIG_TAC
+  /* Free semantic attributes */
+  if (node->attributes) {
+    sdt_attributes_destroy(node->attributes);
+  }
+
+  /* Free children array */
+  if (node->children) {
+    free(node->children);
+  }
+#endif
 
   /* Recursively free children and siblings */
   destroy_syntax_tree_node(node->first_child);
@@ -83,6 +98,13 @@ SyntaxTreeNode *syntax_tree_create_nonterminal(int nonterminal_id,
   node->next_sibling = NULL;
   node->production_id = production_id;
 
+#ifdef CONFIG_TAC
+  node->attributes = NULL;
+  node->children = NULL;
+  node->children_count = 0;
+  node->children_capacity = 0;
+#endif
+
   DEBUG_PRINT("Created non-terminal node: %s (ID: %d, Production: %d)",
               symbol_name, nonterminal_id, production_id);
   return node;
@@ -110,7 +132,14 @@ SyntaxTreeNode *syntax_tree_create_terminal(Token token,
   node->parent = NULL;
   node->first_child = NULL;
   node->next_sibling = NULL;
-  node->production_id = -1; /* Not applicable for terminals */
+
+#ifdef CONFIG_TAC
+  node->production_id = -1;
+  node->attributes = NULL;
+  node->children = NULL;
+  node->children_count = 0;
+  node->children_capacity = 0;
+#endif
 
   DEBUG_PRINT("Created terminal node: %s", symbol_name);
   return node;
@@ -132,11 +161,17 @@ SyntaxTreeNode *syntax_tree_create_epsilon(void) {
     free(node);
     return NULL;
   }
-
   node->parent = NULL;
   node->first_child = NULL;
   node->next_sibling = NULL;
-  node->production_id = -1; /* Not applicable for epsilon */
+  node->production_id = -1;
+
+#ifdef CONFIG_TAC
+  node->attributes = NULL;
+  node->children = NULL;
+  node->children_count = 0;
+  node->children_capacity = 0;
+#endif
 
   DEBUG_PRINT("Created epsilon node");
   return node;
@@ -152,6 +187,29 @@ void syntax_tree_add_child(SyntaxTreeNode *parent, SyntaxTreeNode *child) {
 
   /* Set parent-child relationship */
   child->parent = parent;
+
+#ifdef CONFIG_TAC
+  /* Add to children array */
+  if (parent->children == NULL) {
+    parent->children = (SyntaxTreeNode **)safe_malloc(sizeof(SyntaxTreeNode *));
+    if (!parent->children) {
+      return;
+    }
+    parent->children_count = 0;
+    parent->children_capacity = 1;
+  } else if (parent->children_count >= parent->children_capacity) {
+    int new_capacity = parent->children_capacity * 2;
+    SyntaxTreeNode **new_children = (SyntaxTreeNode **)safe_realloc(
+        parent->children, new_capacity * sizeof(SyntaxTreeNode *));
+    if (!new_children) {
+      return;
+    }
+    parent->children = new_children;
+    parent->children_capacity = new_capacity;
+  }
+
+  parent->children[parent->children_count++] = child;
+#endif
 
   /* Add as first child if none exists */
   if (!parent->first_child) {

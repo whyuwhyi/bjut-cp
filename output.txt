@@ -1,0 +1,220 @@
+Syntax Tree:
+P (Production: 0)
+  L (Production: 3)
+    S (Production: 6)
+      while [WHILE      -]
+      C (Production: 10)
+        ( [SLP        -]
+        E (Production: 17)
+          R (Production: 21)
+            F (Production: 25)
+              ( [SLP        -]
+              E (Production: 17)
+                R (Production: 21)
+                  F (Production: 26)
+                    id [IDN        a3]
+                  Y (Production: 24)
+                    ε
+                X (Production: 18)
+                  + [ADD        -]
+                  R (Production: 21)
+                    F (Production: 28)
+                      int10 [DEC        15]
+                    Y (Production: 24)
+                      ε
+                  X (Production: 20)
+                    ε
+              ) [SRP        -]
+            Y (Production: 24)
+              ε
+          X (Production: 20)
+            ε
+        > [GT         -]
+        E (Production: 17)
+          R (Production: 21)
+            F (Production: 29)
+              int16 [HEX        10]
+            Y (Production: 24)
+              ε
+          X (Production: 20)
+            ε
+      do [DO         -]
+      S (Production: 5)
+        if [IF         -]
+        C (Production: 12)
+          E (Production: 17)
+            R (Production: 21)
+              F (Production: 26)
+                id [IDN        x2]
+              Y (Production: 24)
+                ε
+            X (Production: 20)
+              ε
+          = [EQ         -]
+          E (Production: 17)
+            R (Production: 21)
+              F (Production: 27)
+                int8 [OCT        7]
+              Y (Production: 24)
+                ε
+            X (Production: 20)
+              ε
+        then [THEN       -]
+        S (Production: 6)
+          while [WHILE      -]
+          C (Production: 11)
+            E (Production: 17)
+              R (Production: 21)
+                F (Production: 26)
+                  id [IDN        y]
+                Y (Production: 24)
+                  ε
+              X (Production: 20)
+                ε
+            < [LT         -]
+            E (Production: 17)
+              R (Production: 21)
+                F (Production: 26)
+                  id [IDN        z]
+                Y (Production: 24)
+                  ε
+              X (Production: 20)
+                ε
+          do [DO         -]
+          S (Production: 4)
+            id [IDN        y]
+            = [EQ         -]
+            E (Production: 17)
+              R (Production: 21)
+                F (Production: 26)
+                  id [IDN        x]
+                Y (Production: 22)
+                  * [MUL        -]
+                  F (Production: 26)
+                    id [IDN        y]
+                  Y (Production: 23)
+                    / [DIV        -]
+                    F (Production: 26)
+                      id [IDN        z]
+                    Y (Production: 24)
+                      ε
+              X (Production: 20)
+                ε
+        N (Production: 9)
+          ε
+    ; [SEMI       -]
+  T (Production: 1)
+    P (Production: 0)
+      L (Production: 3)
+        S (Production: 4)
+          id [IDN        c]
+          = [EQ         -]
+          E (Production: 17)
+            R (Production: 21)
+              F (Production: 26)
+                id [IDN        b]
+              Y (Production: 22)
+                * [MUL        -]
+                F (Production: 26)
+                  id [IDN        c]
+                Y (Production: 24)
+                  ε
+            X (Production: 18)
+              + [ADD        -]
+              R (Production: 21)
+                F (Production: 26)
+                  id [IDN        d]
+                Y (Production: 24)
+                  ε
+              X (Production: 20)
+                ε
+        ; [SEMI       -]
+      T (Production: 2)
+        ε
+    T (Production: 2)
+      ε
+Leftmost Derivation:
+  1: F -> id
+  2: Y -> ε
+  3: R -> F Y
+  4: F -> int10
+  5: Y -> ε
+  6: R -> F Y
+  7: X -> ε
+  8: X -> + R X
+  9: E -> R X
+  10: F -> id
+  11: Y -> ε
+  12: R -> F Y
+  13: F -> int10
+  14: Y -> ε
+  15: R -> F Y
+  16: X -> ε
+  17: X -> + R X
+  18: E -> R X
+  19: F -> ( E )
+  20: Y -> ε
+  21: R -> F Y
+  22: X -> ε
+  23: E -> R X
+  24: F -> int16
+  25: Y -> ε
+  26: R -> F Y
+  27: X -> ε
+  28: E -> R X
+  29: C -> E > E
+  30: F -> id
+  31: Y -> ε
+  32: R -> F Y
+  33: X -> ε
+  34: E -> R X
+  35: F -> int8
+  36: Y -> ε
+  37: R -> F Y
+  38: X -> ε
+  39: E -> R X
+  40: C -> E = E
+  41: F -> id
+  42: Y -> ε
+  43: R -> F Y
+  44: X -> ε
+  45: E -> R X
+  46: F -> id
+  47: Y -> ε
+  48: R -> F Y
+  49: X -> ε
+  50: E -> R X
+  51: C -> E < E
+  52: F -> id
+  53: F -> id
+  54: F -> id
+  55: Y -> ε
+  56: Y -> / F Y
+  57: Y -> * F Y
+  58: R -> F Y
+  59: X -> ε
+  60: E -> R X
+  61: S -> id = E
+  62: S -> while C do S
+  63: N -> ε
+  64: S -> if C then S N
+  65: S -> while C do S
+  66: L -> S ;
+  67: F -> id
+  68: F -> id
+  69: Y -> ε
+  70: Y -> * F Y
+  71: R -> F Y
+  72: F -> id
+  73: Y -> ε
+  74: R -> F Y
+  75: X -> ε
+  76: X -> + R X
+  77: E -> R X
+  78: S -> id = E
+  79: L -> S ;
+  80: T -> ε
+  81: P -> L T
+  82: T -> ε
+  83: T -> P T
+  84: P -> L T
