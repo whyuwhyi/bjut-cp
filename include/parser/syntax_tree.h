@@ -11,11 +11,6 @@
 #include <stdbool.h>
 
 /**
- * @brief Syntax tree node
- */
-typedef struct SyntaxTreeNode SyntaxTreeNode;
-
-/**
  * @brief Node types for syntax tree
  */
 typedef enum {
@@ -27,7 +22,7 @@ typedef enum {
 /**
  * @brief Syntax tree node structure
  */
-struct SyntaxTreeNode {
+typedef struct SyntaxTreeNode {
   NodeType type; /* Node type */
   union {
     int nonterminal_id; /* Non-terminal ID */
@@ -36,13 +31,13 @@ struct SyntaxTreeNode {
   char *symbol_name; /* Symbol name for display */
 
   /* Tree structure */
-  SyntaxTreeNode *parent;       /* Parent node */
-  SyntaxTreeNode *first_child;  /* First child node */
-  SyntaxTreeNode *next_sibling; /* Next sibling node */
+  struct SyntaxTreeNode *parent;       /* Parent node */
+  struct SyntaxTreeNode *first_child;  /* First child node */
+  struct SyntaxTreeNode *next_sibling; /* Next sibling node */
 
   /* Production information (for non-terminals) */
   int production_id; /* ID of the production used */
-};
+} SyntaxTreeNode;
 
 /**
  * @brief Syntax tree structure

@@ -1,61 +1,71 @@
 /**
  * @file codegen.h
- * @brief Three-address code generator interface
+ * @brief Syntax-directed translation code generator interface
  */
 
-#ifndef CODEGEN_H
-#define CODEGEN_H
+#ifndef SDT_CODEGEN_H
+#define SDT_CODEGEN_H
 
 #include "codegen/tac.h"
 #include "lexer_analyzer/lexer.h"
 #include "parser/parser.h"
-#include "parser/syntax_tree.h"
+#include <stdbool.h>
+
+typedef struct SDTCodeGen SDTCodeGen;
 
 /**
- * @brief Code generator structure
- */
-typedef struct CodeGenerator CodeGenerator;
-
-/**
- * @brief Create a new code generator
+ * @brief Create a new SDT code generator
  *
- * @return CodeGenerator* Created code generator, or NULL on failure
+ * @return SDTCodeGen* Created code generator, or NULL on failure
  */
-CodeGenerator *codegen_create(void);
+SDTCodeGen *sdt_codegen_create(void);
 
 /**
- * @brief Initialize code generator
+ * @brief Initialize SDT code generator
  *
  * @param gen Code generator to initialize
  * @return bool Success status
  */
-bool codegen_init(CodeGenerator *gen);
+bool sdt_codegen_init(SDTCodeGen *gen);
 
 /**
- * @brief Generate three-address code from a syntax tree
+ * @brief Generate three-address code during parsing
+ *
+ * Generates code on-the-fly during syntax analysis
  *
  * @param gen Initialized code generator
- * @param tree Syntax tree to generate code from
- * @return TACProgram* Generated three-address code program, or NULL on failure
- */
-TACProgram *codegen_generate(CodeGenerator *gen, SyntaxTree *tree);
-
-/**
- * @brief Generate three-address code directly from input
- *
- * @param gen Initialized code generator
- * @param lexer Initialized lexer with input
  * @param parser Initialized parser
+ * @param lexer Initialized lexer with input
  * @return TACProgram* Generated three-address code program, or NULL on failure
  */
-TACProgram *codegen_generate_from_source(CodeGenerator *gen, Lexer *lexer,
-                                         Parser *parser);
+TACProgram *sdt_codegen_generate(SDTCodeGen *gen, Parser *parser, Lexer *lexer);
 
 /**
- * @brief Free code generator resources
+ * @brief Execute semantic action for a production
+ *
+ * This function is called by the parser when a production is recognized
+ *
+ * @param gen Code generator
+ * @param production_id Production ID
+ * @param node Syntax tree node representing the production
+ * @return bool Success status
+ */
+bool sdt_execute_action(SDTCodeGen *gen, int production_id,
+                        SyntaxTreeNode *node);
+
+/**
+ * @brief Get error message from the code generator
+ *
+ * @param gen Code generator
+ * @return const char* Error message, or NULL if no error occurred
+ */
+const char *sdt_codegen_get_error(const SDTCodeGen *gen);
+
+/**
+ * @brief Free SDT code generator resources
  *
  * @param gen Code generator to destroy
  */
-void codegen_destroy(CodeGenerator *gen);
+void sdt_codegen_destroy(SDTCodeGen *gen);
 
 #endif /* CODEGEN_H */

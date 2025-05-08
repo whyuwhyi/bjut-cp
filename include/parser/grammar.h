@@ -209,10 +209,14 @@ typedef enum {
   NT_P, /* Program */
   NT_L, /* Statement list */
   NT_S, /* Statement */
+  NT_N, /* Statement Tail (for else part) */
   NT_C, /* Condition */
   NT_E, /* Expression */
-  NT_T, /* Term */
-  NT_F  /* Factor */
+  NT_X, /* Expression Tail */
+  NT_R, /* Term */
+  NT_Y, /* Term Tail */
+  NT_F, /* Factor */
+  NT_T  /* Program Tail */
 } Nonterminal;
 
 #endif /* GRAMMAR_H */

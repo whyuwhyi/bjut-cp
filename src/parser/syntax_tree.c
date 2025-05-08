@@ -4,6 +4,7 @@
  */
 
 #include "parser/syntax_tree.h"
+#include "parser_common.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,6 +189,16 @@ void syntax_tree_set_root(SyntaxTree *tree, SyntaxTreeNode *root) {
 }
 
 /**
+ * @brief Get the root node of a syntax tree
+ */
+SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree) {
+  if (!tree) {
+    return NULL;
+  }
+  return tree->root;
+}
+
+/**
  * @brief Helper function to print a syntax tree node with indentation
  */
 static void print_syntax_tree_node(const SyntaxTreeNode *node, int indent) {
@@ -226,16 +237,6 @@ static void print_syntax_tree_node(const SyntaxTreeNode *node, int indent) {
 
   /* Print siblings with same indentation */
   print_syntax_tree_node(node->next_sibling, indent);
-}
-
-/**
- * @brief Get the root node of a syntax tree
- */
-SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree) {
-  if (!tree) {
-    return NULL;
-  }
-  return tree->root;
 }
 
 /**

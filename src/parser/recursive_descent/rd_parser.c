@@ -89,10 +89,14 @@ static bool match_token(RDParserData *data, TokenType token_type,
 static SyntaxTreeNode *parse_P(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_L(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_E(Parser *parser, RDParserData *data);
-static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_R(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data);
 
 /**
  * @brief Parse non-terminal P (Program)
@@ -111,34 +115,80 @@ static SyntaxTreeNode *parse_P(Parser *parser, RDParserData *data) {
     return NULL;
   }
 
-  /* Try production P → L */
+  /* Try production P → L T */
   SyntaxTreeNode *l_node = parse_L(parser, data);
-  if (l_node) {
-    syntax_tree_add_child(node, l_node);
-    node->production_id = 0; /* P → L */
-    production_tracker_add(parser->production_tracker, 0);
-
-    /* Check if we have more input for P → L P */
-    const Token *token = get_current_token(data);
-    if (token) {
-      SyntaxTreeNode *p_node = parse_P(parser, data);
-      if (p_node) {
-        syntax_tree_add_child(node, p_node);
-        node->production_id = 1; /* P → L P */
-        production_tracker_add(parser->production_tracker, 1);
-      }
-    }
-
-    return node;
+  if (!l_node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to parse statement list (non-terminal L)");
+    return NULL;
   }
 
-  /* No valid production found */
-  syntax_tree_destroy(data->syntax_tree);
-  data->syntax_tree = NULL;
-  data->has_error = true;
-  snprintf(data->error_message, sizeof(data->error_message),
-           "Failed to parse program (non-terminal P)");
-  return NULL;
+  syntax_tree_add_child(node, l_node);
+
+  SyntaxTreeNode *t_node = parse_T(parser, data);
+  if (!t_node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to parse program tail (non-terminal T)");
+    return NULL;
+  }
+
+  syntax_tree_add_child(node, t_node);
+  node->production_id = 0; /* P → L T */
+  production_tracker_add(parser->production_tracker, 0);
+
+  return node;
+}
+
+/**
+ * @brief Parse non-terminal T (Program Tail)
+ */
+static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data) {
+  if (!parser || !data) {
+    return NULL;
+  }
+
+  /* Create node for non-terminal T */
+  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_T, "T", -1);
+  if (!node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to create syntax tree node");
+    return NULL;
+  }
+
+  int save_token_index = data->current_token_index;
+
+  /* Try production T → P T */
+  SyntaxTreeNode *p_node = parse_P(parser, data);
+  if (p_node) {
+    syntax_tree_add_child(node, p_node);
+
+    SyntaxTreeNode *t_node = parse_T(parser, data);
+    if (t_node) {
+      syntax_tree_add_child(node, t_node);
+      node->production_id = 1; /* T → P T */
+      production_tracker_add(parser->production_tracker, 1);
+      return node;
+    }
+  }
+
+  /* Backtrack if first production failed */
+  data->current_token_index = save_token_index;
+  data->has_error = false; /* Reset error flag */
+
+  /* Try production T → ε */
+  node->production_id = 2; /* T → ε */
+  production_tracker_add(parser->production_tracker, 2);
+
+  /* Add epsilon node */
+  SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+  if (epsilon) {
+    syntax_tree_add_child(node, epsilon);
+  }
+
+  return node;
 }
 
 /**
@@ -159,24 +209,26 @@ static SyntaxTreeNode *parse_L(Parser *parser, RDParserData *data) {
   }
 
   /* Try production L → S ; */
-  int save_token_index = data->current_token_index;
   SyntaxTreeNode *s_node = parse_S(parser, data);
-  if (s_node) {
-    syntax_tree_add_child(node, s_node);
-
-    if (match_token(data, TK_SEMI, node, ";")) {
-      node->production_id = 2; /* L → S ; */
-      production_tracker_add(parser->production_tracker, 2);
-      return node;
-    }
+  if (!s_node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to parse statement (non-terminal S)");
+    return NULL;
   }
 
-  /* Backtrack if production failed */
-  data->current_token_index = save_token_index;
-  data->has_error = true;
-  snprintf(data->error_message, sizeof(data->error_message),
-           "Failed to parse statement list (non-terminal L)");
-  return NULL;
+  syntax_tree_add_child(node, s_node);
+
+  if (!match_token(data, TK_SEMI, node, ";")) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Expected semicolon after statement");
+    return NULL;
+  }
+
+  node->production_id = 3; /* L → S ; */
+  production_tracker_add(parser->production_tracker, 3);
+  return node;
 }
 
 /**
@@ -213,18 +265,18 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
         SyntaxTreeNode *e_node = parse_E(parser, data);
         if (e_node) {
           syntax_tree_add_child(node, e_node);
-          node->production_id = 3; /* S → id = E */
-          production_tracker_add(parser->production_tracker, 3);
+          node->production_id = 4; /* S → id = E */
+          production_tracker_add(parser->production_tracker, 4);
           return node;
         }
       }
     }
-
     /* Backtrack if production failed */
     data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
   }
 
-  /* Try production S → if C then S */
+  /* Try production S → if C then S N */
   if (token->type == TK_IF) {
     if (match_token(data, TK_IF, node, "if")) {
       SyntaxTreeNode *c_node = parse_C(parser, data);
@@ -236,31 +288,20 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
           if (s_node) {
             syntax_tree_add_child(node, s_node);
 
-            /* Check for 'else' to determine if this is S → if C then S or S →
-             * if C then S else S */
-            token = get_current_token(data);
-            if (token && token->type == TK_ELSE) {
-              if (match_token(data, TK_ELSE, node, "else")) {
-                SyntaxTreeNode *s2_node = parse_S(parser, data);
-                if (s2_node) {
-                  syntax_tree_add_child(node, s2_node);
-                  node->production_id = 5; /* S → if C then S else S */
-                  production_tracker_add(parser->production_tracker, 5);
-                  return node;
-                }
-              }
-            } else {
-              node->production_id = 4; /* S → if C then S */
-              production_tracker_add(parser->production_tracker, 4);
+            SyntaxTreeNode *n_node = parse_N(parser, data);
+            if (n_node) {
+              syntax_tree_add_child(node, n_node);
+              node->production_id = 5; /* S → if C then S N */
+              production_tracker_add(parser->production_tracker, 5);
               return node;
             }
           }
         }
       }
     }
-
     /* Backtrack if production failed */
     data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
   }
 
   /* Try production S → while C do S */
@@ -281,16 +322,94 @@ static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data) {
         }
       }
     }
-
     /* Backtrack if production failed */
     data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
+  }
+
+  /* Try production S → begin L end */
+  if (token->type == TK_BEGIN) {
+    if (match_token(data, TK_BEGIN, node, "begin")) {
+      SyntaxTreeNode *l_node = parse_L(parser, data);
+      if (l_node) {
+        syntax_tree_add_child(node, l_node);
+
+        if (match_token(data, TK_END, node, "end")) {
+          node->production_id = 7; /* S → begin L end */
+          production_tracker_add(parser->production_tracker, 7);
+          return node;
+        }
+      }
+    }
+    /* Backtrack if production failed */
+    data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
   }
 
   /* No valid production found */
   data->has_error = true;
+  char token_str[128];
+  token_to_string(token, token_str, sizeof(token_str));
   snprintf(data->error_message, sizeof(data->error_message),
-           "Failed to parse statement (non-terminal S)");
+           "Failed to parse statement (non-terminal S), unexpected token: %s",
+           token_str);
   return NULL;
+}
+
+/**
+ * @brief Parse non-terminal N (Statement Tail)
+ */
+static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data) {
+  if (!parser || !data) {
+    return NULL;
+  }
+
+  /* Create node for non-terminal N */
+  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_N, "N", -1);
+  if (!node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to create syntax tree node");
+    return NULL;
+  }
+
+  const Token *token = get_current_token(data);
+  if (!token) {
+    /* Handle epsilon production */
+    node->production_id = 9; /* N → ε */
+    production_tracker_add(parser->production_tracker, 9);
+    SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+    if (epsilon) {
+      syntax_tree_add_child(node, epsilon);
+    }
+    return node;
+  }
+
+  /* Try production N → else S */
+  if (token->type == TK_ELSE) {
+    if (match_token(data, TK_ELSE, node, "else")) {
+      SyntaxTreeNode *s_node = parse_S(parser, data);
+      if (s_node) {
+        syntax_tree_add_child(node, s_node);
+        node->production_id = 8; /* N → else S */
+        production_tracker_add(parser->production_tracker, 8);
+        return node;
+      }
+    }
+  }
+
+  /* If ELSE not found, handle as epsilon production */
+  node->production_id = 9; /* N → ε */
+  production_tracker_add(parser->production_tracker, 9);
+  SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+  if (epsilon) {
+    syntax_tree_add_child(node, epsilon);
+  }
+
+  /* Reset error flag as this is a valid epsilon production */
+  data->has_error = false;
+
+  return node;
 }
 
 /**
@@ -310,7 +429,36 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
     return NULL;
   }
 
-  /* Parse left-hand expression for all C productions */
+  const Token *token = get_current_token(data);
+  if (!token) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Unexpected end of input");
+    return NULL;
+  }
+
+  int save_token_index = data->current_token_index;
+
+  /* Try production C → ( C ) */
+  if (token->type == TK_SLP) {
+    if (match_token(data, TK_SLP, node, "(")) {
+      SyntaxTreeNode *c_node = parse_C(parser, data);
+      if (c_node) {
+        syntax_tree_add_child(node, c_node);
+
+        if (match_token(data, TK_SRP, node, ")")) {
+          node->production_id = 16; /* C → ( C ) */
+          production_tracker_add(parser->production_tracker, 16);
+          return node;
+        }
+      }
+    }
+    /* Backtrack if production failed */
+    data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
+  }
+
+  /* Parse left-hand expression for relational operations */
   SyntaxTreeNode *left_e_node = parse_E(parser, data);
   if (!left_e_node) {
     data->has_error = true;
@@ -320,7 +468,7 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
   }
   syntax_tree_add_child(node, left_e_node);
 
-  const Token *token = get_current_token(data);
+  token = get_current_token(data);
   if (!token) {
     data->has_error = true;
     snprintf(data->error_message, sizeof(data->error_message),
@@ -335,8 +483,8 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
       SyntaxTreeNode *right_e_node = parse_E(parser, data);
       if (right_e_node) {
         syntax_tree_add_child(node, right_e_node);
-        node->production_id = 7; /* C → E > E */
-        production_tracker_add(parser->production_tracker, 7);
+        node->production_id = 10; /* C → E > E */
+        production_tracker_add(parser->production_tracker, 10);
         return node;
       }
     }
@@ -346,8 +494,8 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
       SyntaxTreeNode *right_e_node = parse_E(parser, data);
       if (right_e_node) {
         syntax_tree_add_child(node, right_e_node);
-        node->production_id = 8; /* C → E < E */
-        production_tracker_add(parser->production_tracker, 8);
+        node->production_id = 11; /* C → E < E */
+        production_tracker_add(parser->production_tracker, 11);
         return node;
       }
     }
@@ -357,8 +505,41 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
       SyntaxTreeNode *right_e_node = parse_E(parser, data);
       if (right_e_node) {
         syntax_tree_add_child(node, right_e_node);
-        node->production_id = 9; /* C → E = E */
-        production_tracker_add(parser->production_tracker, 9);
+        node->production_id = 12; /* C → E = E */
+        production_tracker_add(parser->production_tracker, 12);
+        return node;
+      }
+    }
+  } else if (token->type == TK_GE) {
+    /* C → E >= E */
+    if (match_token(data, TK_GE, node, ">=")) {
+      SyntaxTreeNode *right_e_node = parse_E(parser, data);
+      if (right_e_node) {
+        syntax_tree_add_child(node, right_e_node);
+        node->production_id = 13; /* C → E >= E */
+        production_tracker_add(parser->production_tracker, 13);
+        return node;
+      }
+    }
+  } else if (token->type == TK_LE) {
+    /* C → E <= E */
+    if (match_token(data, TK_LE, node, "<=")) {
+      SyntaxTreeNode *right_e_node = parse_E(parser, data);
+      if (right_e_node) {
+        syntax_tree_add_child(node, right_e_node);
+        node->production_id = 14; /* C → E <= E */
+        production_tracker_add(parser->production_tracker, 14);
+        return node;
+      }
+    }
+  } else if (token->type == TK_NEQ) {
+    /* C → E <> E */
+    if (match_token(data, TK_NEQ, node, "<>")) {
+      SyntaxTreeNode *right_e_node = parse_E(parser, data);
+      if (right_e_node) {
+        syntax_tree_add_child(node, right_e_node);
+        node->production_id = 15; /* C → E <> E */
+        production_tracker_add(parser->production_tracker, 15);
         return node;
       }
     }
@@ -366,8 +547,11 @@ static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
 
   /* No valid production found */
   data->has_error = true;
+  char token_str[128];
+  token_to_string(token, token_str, sizeof(token_str));
   snprintf(data->error_message, sizeof(data->error_message),
-           "Failed to parse condition (non-terminal C)");
+           "Failed to parse condition (non-terminal C), unexpected token: %s",
+           token_str);
   return NULL;
 }
 
@@ -388,76 +572,42 @@ static SyntaxTreeNode *parse_E(Parser *parser, RDParserData *data) {
     return NULL;
   }
 
-  /* Try production E → T */
-  SyntaxTreeNode *t_node = parse_T(parser, data);
-  if (!t_node) {
+  /* Try production E → R X */
+  SyntaxTreeNode *r_node = parse_R(parser, data);
+  if (!r_node) {
     data->has_error = true;
     snprintf(data->error_message, sizeof(data->error_message),
-             "Failed to parse term in expression");
+             "Failed to parse term (non-terminal R)");
     return NULL;
   }
-  syntax_tree_add_child(node, t_node);
-  node->production_id = 12; /* E → T */
-  production_tracker_add(parser->production_tracker, 12);
 
-  /* Look for additional terms to handle E → E + T and E → E - T */
-  const Token *token = get_current_token(data);
-  while (token && (token->type == TK_ADD || token->type == TK_SUB)) {
-    TokenType op_type = token->type;
+  syntax_tree_add_child(node, r_node);
 
-    /* Create a new expression node for the binary operation */
-    SyntaxTreeNode *new_expr = syntax_tree_create_nonterminal(NT_E, "E", -1);
-    if (!new_expr) {
-      data->has_error = true;
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Failed to create syntax tree node for binary expression");
-      return NULL;
-    }
-
-    /* Make the current expression the left-hand side */
-    syntax_tree_add_child(new_expr, node);
-
-    /* Add the operator token */
-    if (op_type == TK_ADD) {
-      match_token(data, TK_ADD, new_expr, "+");
-      new_expr->production_id = 10; /* E → E + T */
-      production_tracker_add(parser->production_tracker, 10);
-    } else {
-      match_token(data, TK_SUB, new_expr, "-");
-      new_expr->production_id = 11; /* E → E - T */
-      production_tracker_add(parser->production_tracker, 11);
-    }
-
-    /* Parse the right-hand term */
-    SyntaxTreeNode *right_t_node = parse_T(parser, data);
-    if (!right_t_node) {
-      data->has_error = true;
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Failed to parse right term in binary expression");
-      return NULL;
-    }
-    syntax_tree_add_child(new_expr, right_t_node);
-
-    /* Update the current expression node */
-    node = new_expr;
-
-    /* Check for more operators */
-    token = get_current_token(data);
+  SyntaxTreeNode *x_node = parse_X(parser, data);
+  if (!x_node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to parse expression tail (non-terminal X)");
+    return NULL;
   }
+
+  syntax_tree_add_child(node, x_node);
+  node->production_id = 17; /* E → R X */
+  production_tracker_add(parser->production_tracker, 17);
 
   return node;
 }
 
 /**
- * @brief Parse non-terminal T (Term)
+ * @brief Parse non-terminal X (Expression Tail)
  */
-static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data) {
+static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data) {
   if (!parser || !data) {
     return NULL;
   }
 
-  /* Create node for non-terminal T */
-  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_T, "T", -1);
+  /* Create node for non-terminal X */
+  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_X, "X", -1);
   if (!node) {
     data->has_error = true;
     snprintf(data->error_message, sizeof(data->error_message),
@@ -465,62 +615,182 @@ static SyntaxTreeNode *parse_T(Parser *parser, RDParserData *data) {
     return NULL;
   }
 
-  /* Try production T → F */
+  const Token *token = get_current_token(data);
+  if (!token) {
+    /* Handle epsilon production */
+    node->production_id = 20; /* X → ε */
+    production_tracker_add(parser->production_tracker, 20);
+    SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+    if (epsilon) {
+      syntax_tree_add_child(node, epsilon);
+    }
+    return node;
+  }
+
+  if (token->type == TK_ADD) {
+    /* X → + R X */
+    if (match_token(data, TK_ADD, node, "+")) {
+      SyntaxTreeNode *r_node = parse_R(parser, data);
+      if (r_node) {
+        syntax_tree_add_child(node, r_node);
+
+        SyntaxTreeNode *x_node = parse_X(parser, data);
+        if (x_node) {
+          syntax_tree_add_child(node, x_node);
+          node->production_id = 18; /* X → + R X */
+          production_tracker_add(parser->production_tracker, 18);
+          return node;
+        }
+      }
+    }
+  } else if (token->type == TK_SUB) {
+    /* X → - R X */
+    if (match_token(data, TK_SUB, node, "-")) {
+      SyntaxTreeNode *r_node = parse_R(parser, data);
+      if (r_node) {
+        syntax_tree_add_child(node, r_node);
+
+        SyntaxTreeNode *x_node = parse_X(parser, data);
+        if (x_node) {
+          syntax_tree_add_child(node, x_node);
+          node->production_id = 19; /* X → - R X */
+          production_tracker_add(parser->production_tracker, 19);
+          return node;
+        }
+      }
+    }
+  }
+
+  /* If no '+' or '-', handle as epsilon production */
+  node->production_id = 20; /* X → ε */
+  production_tracker_add(parser->production_tracker, 20);
+  SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+  if (epsilon) {
+    syntax_tree_add_child(node, epsilon);
+  }
+
+  /* Reset error flag as this is a valid epsilon production */
+  data->has_error = false;
+
+  return node;
+}
+
+/**
+ * @brief Parse non-terminal R (Term)
+ */
+static SyntaxTreeNode *parse_R(Parser *parser, RDParserData *data) {
+  if (!parser || !data) {
+    return NULL;
+  }
+
+  /* Create node for non-terminal R */
+  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_R, "R", -1);
+  if (!node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to create syntax tree node");
+    return NULL;
+  }
+
+  /* Try production R → F Y */
   SyntaxTreeNode *f_node = parse_F(parser, data);
   if (!f_node) {
     data->has_error = true;
     snprintf(data->error_message, sizeof(data->error_message),
-             "Failed to parse factor in term");
+             "Failed to parse factor (non-terminal F)");
     return NULL;
   }
+
   syntax_tree_add_child(node, f_node);
-  node->production_id = 13; /* T → F */
-  production_tracker_add(parser->production_tracker, 13);
 
-  /* Look for additional factors to handle T → T * F and T → T / F */
-  const Token *token = get_current_token(data);
-  while (token && (token->type == TK_MUL || token->type == TK_DIV)) {
-    TokenType op_type = token->type;
-
-    /* Create a new term node for the binary operation */
-    SyntaxTreeNode *new_term = syntax_tree_create_nonterminal(NT_T, "T", -1);
-    if (!new_term) {
-      data->has_error = true;
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Failed to create syntax tree node for binary term");
-      return NULL;
-    }
-
-    /* Make the current term the left-hand side */
-    syntax_tree_add_child(new_term, node);
-
-    /* Add the operator token */
-    if (op_type == TK_MUL) {
-      match_token(data, TK_MUL, new_term, "*");
-      new_term->production_id = 14; /* T → T * F */
-      production_tracker_add(parser->production_tracker, 14);
-    } else {
-      match_token(data, TK_DIV, new_term, "/");
-      new_term->production_id = 15; /* T → T / F */
-      production_tracker_add(parser->production_tracker, 15);
-    }
-
-    /* Parse the right-hand factor */
-    SyntaxTreeNode *right_f_node = parse_F(parser, data);
-    if (!right_f_node) {
-      data->has_error = true;
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Failed to parse right factor in binary term");
-      return NULL;
-    }
-    syntax_tree_add_child(new_term, right_f_node);
-
-    /* Update the current term node */
-    node = new_term;
-
-    /* Check for more operators */
-    token = get_current_token(data);
+  SyntaxTreeNode *y_node = parse_Y(parser, data);
+  if (!y_node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to parse term tail (non-terminal Y)");
+    return NULL;
   }
+
+  syntax_tree_add_child(node, y_node);
+  node->production_id = 21; /* R → F Y */
+  production_tracker_add(parser->production_tracker, 21);
+
+  return node;
+}
+
+/**
+ * @brief Parse non-terminal Y (Term Tail)
+ */
+static SyntaxTreeNode *parse_Y(Parser *parser, RDParserData *data) {
+  if (!parser || !data) {
+    return NULL;
+  }
+
+  /* Create node for non-terminal Y */
+  SyntaxTreeNode *node = syntax_tree_create_nonterminal(NT_Y, "Y", -1);
+  if (!node) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "Failed to create syntax tree node");
+    return NULL;
+  }
+
+  const Token *token = get_current_token(data);
+  if (!token) {
+    /* Handle epsilon production */
+    node->production_id = 24; /* Y → ε */
+    production_tracker_add(parser->production_tracker, 24);
+    SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+    if (epsilon) {
+      syntax_tree_add_child(node, epsilon);
+    }
+    return node;
+  }
+
+  if (token->type == TK_MUL) {
+    /* Y → * F Y */
+    if (match_token(data, TK_MUL, node, "*")) {
+      SyntaxTreeNode *f_node = parse_F(parser, data);
+      if (f_node) {
+        syntax_tree_add_child(node, f_node);
+
+        SyntaxTreeNode *y_node = parse_Y(parser, data);
+        if (y_node) {
+          syntax_tree_add_child(node, y_node);
+          node->production_id = 22; /* Y → * F Y */
+          production_tracker_add(parser->production_tracker, 22);
+          return node;
+        }
+      }
+    }
+  } else if (token->type == TK_DIV) {
+    /* Y → / F Y */
+    if (match_token(data, TK_DIV, node, "/")) {
+      SyntaxTreeNode *f_node = parse_F(parser, data);
+      if (f_node) {
+        syntax_tree_add_child(node, f_node);
+
+        SyntaxTreeNode *y_node = parse_Y(parser, data);
+        if (y_node) {
+          syntax_tree_add_child(node, y_node);
+          node->production_id = 23; /* Y → / F Y */
+          production_tracker_add(parser->production_tracker, 23);
+          return node;
+        }
+      }
+    }
+  }
+
+  /* If no '*' or '/', handle as epsilon production */
+  node->production_id = 24; /* Y → ε */
+  production_tracker_add(parser->production_tracker, 24);
+  SyntaxTreeNode *epsilon = syntax_tree_create_epsilon();
+  if (epsilon) {
+    syntax_tree_add_child(node, epsilon);
+  }
+
+  /* Reset error flag as this is a valid epsilon production */
+  data->has_error = false;
 
   return node;
 }
@@ -559,8 +829,8 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
         syntax_tree_add_child(node, e_node);
 
         if (match_token(data, TK_SRP, node, ")")) {
-          node->production_id = 16; /* F → ( E ) */
-          production_tracker_add(parser->production_tracker, 16);
+          node->production_id = 25; /* F → ( E ) */
+          production_tracker_add(parser->production_tracker, 25);
           return node;
         }
       }
@@ -568,29 +838,29 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
   } else if (token->type == TK_IDN) {
     /* F → id */
     if (match_token(data, TK_IDN, node, "id")) {
-      node->production_id = 17; /* F → id */
-      production_tracker_add(parser->production_tracker, 17);
+      node->production_id = 26; /* F → id */
+      production_tracker_add(parser->production_tracker, 26);
       return node;
     }
   } else if (token->type == TK_OCT) {
     /* F → int8 */
     if (match_token(data, TK_OCT, node, "int8")) {
-      node->production_id = 18; /* F → int8 */
-      production_tracker_add(parser->production_tracker, 18);
+      node->production_id = 27; /* F → int8 */
+      production_tracker_add(parser->production_tracker, 27);
       return node;
     }
   } else if (token->type == TK_DEC) {
     /* F → int10 */
     if (match_token(data, TK_DEC, node, "int10")) {
-      node->production_id = 19; /* F → int10 */
-      production_tracker_add(parser->production_tracker, 19);
+      node->production_id = 28; /* F → int10 */
+      production_tracker_add(parser->production_tracker, 28);
       return node;
     }
   } else if (token->type == TK_HEX) {
     /* F → int16 */
     if (match_token(data, TK_HEX, node, "int16")) {
-      node->production_id = 20; /* F → int16 */
-      production_tracker_add(parser->production_tracker, 20);
+      node->production_id = 29; /* F → int16 */
+      production_tracker_add(parser->production_tracker, 29);
       return node;
     }
   }

@@ -7,6 +7,7 @@
 #define PARSER_H
 
 #include "common.h"
+#include "grammar.h"
 #include "lexer_analyzer/lexer.h"
 #include "syntax_tree.h"
 #include <stdbool.h>
@@ -22,9 +23,28 @@ typedef enum {
 } ParserType;
 
 /**
- * @brief Parser structure (opaque)
+ * @brief Parser structure definition
  */
-typedef struct Parser Parser;
+typedef struct Parser {
+  ParserType type;  /* Type of parser */
+  Grammar *grammar; /* Grammar for the language */
+  struct ProductionTracker
+      *production_tracker; /* Production tracker for leftmost derivation */
+
+  /* SDT code generator (optional, only set when doing SDT) */
+  struct SDTCodeGen *sdt_gen;
+
+  /* Methods */
+  bool (*init)(struct Parser *parser); /* Initialize parser */
+  SyntaxTree *(*parse)(struct Parser *parser, Lexer *lexer); /* Parse input */
+  void (*print_leftmost_derivation)(
+      struct Parser *parser); /* Output leftmost derivation */
+  void (*destroy)(
+      struct Parser *parser); /* Destroy parser and free resources */
+
+  /* Parser-specific data */
+  void *data; /* Parser-specific data */
+} Parser;
 
 /**
  * @brief Create a parser of the specified type
