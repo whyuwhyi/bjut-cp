@@ -3,7 +3,7 @@
  * @brief Implementation of attribute structure for syntax-directed translation
  */
 
-#include "codegen/sdt_attributes.h"
+#include "sdt_attributes.h"
 #include "common.h"
 #include <stdio.h>
 #include <stdlib.h>

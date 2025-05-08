@@ -1,5 +1,5 @@
 /**
- * @file codegen.h
+ * @file codegen/sdt_codegen.h
  * @brief Syntax-directed translation code generator interface
  */
 
@@ -8,10 +8,28 @@
 
 #include "codegen/tac.h"
 #include "lexer_analyzer/lexer.h"
-#include "parser/parser.h"
+#include "parser/syntax_tree.h"
 #include <stdbool.h>
 
-typedef struct SDTCodeGen SDTCodeGen;
+/**
+ * @brief SDT code generator structure
+ *
+ * This structure holds all the state needed for SDT code generation,
+ * including the symbol table, label manager, and the generated TAC program.
+ */
+typedef struct SDTCodeGen {
+  struct TACProgram *program;       /* Generated three-address code program */
+  struct SymbolTable *symbol_table; /* Symbol table for tracking variables */
+  struct LabelManager
+      *label_manager; /* Label manager for generating unique labels */
+
+  /* Current attributes being processed */
+  struct SDTAttributes *curr_attr; /* Current node's attributes */
+
+  /* Error handling */
+  bool has_error;           /* Error flag */
+  char error_message[1024]; /* Detailed error message */
+} SDTCodeGen;
 
 /**
  * @brief Create a new SDT code generator
@@ -29,29 +47,12 @@ SDTCodeGen *sdt_codegen_create(void);
 bool sdt_codegen_init(SDTCodeGen *gen);
 
 /**
- * @brief Generate three-address code during parsing
- *
- * Generates code on-the-fly during syntax analysis
+ * @brief Generate three-address code for a syntax tree
  *
  * @param gen Initialized code generator
- * @param parser Initialized parser
- * @param lexer Initialized lexer with input
- * @return TACProgram* Generated three-address code program, or NULL on failure
+ * @param node Root of the syntax tree
  */
-TACProgram *sdt_codegen_generate(SDTCodeGen *gen, Parser *parser, Lexer *lexer);
-
-/**
- * @brief Execute semantic action for a production
- *
- * This function is called by the parser when a production is recognized
- *
- * @param gen Code generator
- * @param production_id Production ID
- * @param node Syntax tree node representing the production
- * @return bool Success status
- */
-bool sdt_execute_action(SDTCodeGen *gen, int production_id,
-                        SyntaxTreeNode *node);
+void sdt_codegen_generate(SDTCodeGen *gen, SyntaxTreeNode *node);
 
 /**
  * @brief Get error message from the code generator
@@ -68,4 +69,43 @@ const char *sdt_codegen_get_error(const SDTCodeGen *gen);
  */
 void sdt_codegen_destroy(SDTCodeGen *gen);
 
-#endif /* CODEGEN_H */
+/**
+ * @brief Generate a new temporary variable
+ *
+ * @param gen Code generator
+ * @return char* Temporary variable name, or NULL on failure
+ */
+char *sdt_new_temp(SDTCodeGen *gen);
+
+/**
+ * @brief Generate a new label
+ *
+ * @param gen Code generator
+ * @return char* Label name, or NULL on failure
+ */
+char *sdt_new_label(SDTCodeGen *gen);
+
+/**
+ * @brief Add instruction to the program
+ *
+ * @param gen Code generator
+ * @param op Operation type
+ * @param result Result operand
+ * @param arg1 First argument
+ * @param arg2 Second argument
+ * @param lineno Line number
+ * @return bool Success status
+ */
+bool sdt_add_instruction(SDTCodeGen *gen, TACOpType op, const char *result,
+                         const char *arg1, const char *arg2, int lineno);
+
+/**
+ * @brief Set error message
+ *
+ * @param gen Code generator
+ * @param format Format string for the error message
+ * @param ... Additional arguments for the format string
+ */
+void sdt_set_error(SDTCodeGen *gen, const char *format, ...);
+
+#endif /* SDT_CODEGEN_H */

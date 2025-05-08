@@ -4,7 +4,7 @@
  */
 
 #include "codegen/tac.h"
-#include "common.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,83 +99,113 @@ void tac_program_print(TACProgram *program) {
     return;
   }
 
-  printf("Three-Address Code Program (%d instructions):\n", program->count);
+  int actual_instructions = 0;
+  for (int i = 0; i < program->count; i++) {
+    TACInst *inst = program->instructions[i];
+    if (inst->op != TAC_OP_LABEL) {
+      actual_instructions++;
+    }
+  }
+
+  printf("Three-Address Code Program (%d instructions):\n",
+         actual_instructions);
   printf("--------------------------------------------\n");
+
+  // 跟踪当前行是否已经打印了标签
+  bool label_printed = false;
 
   for (int i = 0; i < program->count; i++) {
     TACInst *inst = program->instructions[i];
 
+    // 对于标签
+    if (inst->op == TAC_OP_LABEL) {
+      // 只有当标签有效时才打印
+      if (inst->result && inst->result[0] != '\0') {
+        // 如果当前行还没有内容，直接打印标签
+        if (!label_printed) {
+          printf("%s: ", inst->result);
+          label_printed = true;
+        } else {
+          // 如果当前行已经有内容，先换行，再打印标签
+          printf("\n%s: ", inst->result);
+          label_printed = true;
+        }
+      }
+
+      // 检查下一条指令是否也是标签
+      if (i + 1 < program->count &&
+          program->instructions[i + 1]->op == TAC_OP_LABEL) {
+        continue; // 如果下一条也是标签，不打印换行
+      }
+
+      // 检查是否有后续指令
+      if (i + 1 >= program->count) {
+        printf("\n"); // 如果没有后续指令，打印换行
+        label_printed = false;
+      }
+
+      continue;
+    }
+
+    // 对于非标签指令
+    if (!label_printed) {
+      printf("    "); // 如果行首没有标签，则缩进
+    }
+
+    // 打印指令
     switch (inst->op) {
     case TAC_OP_ASSIGN:
       printf("%s := %s\n", inst->result, inst->arg1);
       break;
-
     case TAC_OP_ADD:
       printf("%s := %s + %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_SUB:
       printf("%s := %s - %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_MUL:
       printf("%s := %s * %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_DIV:
       printf("%s := %s / %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_EQ:
       printf("if %s = %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_NE:
       printf("if %s != %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_LT:
       printf("if %s < %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_LE:
       printf("if %s <= %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_GT:
       printf("if %s > %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_GE:
       printf("if %s >= %s goto %s\n", inst->arg1, inst->arg2, inst->result);
       break;
-
     case TAC_OP_GOTO:
       printf("goto %s\n", inst->result);
       break;
-
-    case TAC_OP_LABEL:
-      printf("%s:\n", inst->result);
-      break;
-
     case TAC_OP_PARAM:
       printf("param %s\n", inst->result);
       break;
-
     case TAC_OP_CALL:
       printf("call %s, %s\n", inst->result, inst->arg1);
       break;
-
     case TAC_OP_RETURN:
       printf("return %s\n", inst->result);
       break;
-
     default:
       printf("Unknown operation\n");
       break;
     }
-  }
 
+    label_printed = false; // 重置标志，准备下一行
+  }
   printf("--------------------------------------------\n");
 }
 
@@ -196,77 +226,77 @@ bool tac_program_write_to_file(TACProgram *program, const char *filename) {
   for (int i = 0; i < program->count; i++) {
     TACInst *inst = program->instructions[i];
 
+    // If this is a label, print it without a newline
+    if (inst->op == TAC_OP_LABEL) {
+      fprintf(file, "%s: ", inst->result);
+
+      // If the next instruction is also a label or we're at the end,
+      // print a newline
+      if (i + 1 >= program->count ||
+          program->instructions[i + 1]->op == TAC_OP_LABEL) {
+        fprintf(file, "\n");
+      }
+      continue;
+    }
+
+    // For non-label instructions, print with indentation if no label precedes
+    if (i == 0 || program->instructions[i - 1]->op != TAC_OP_LABEL) {
+      fprintf(file, "    ");
+    }
+
+    // Print the instruction
     switch (inst->op) {
     case TAC_OP_ASSIGN:
       fprintf(file, "%s := %s\n", inst->result, inst->arg1);
       break;
-
     case TAC_OP_ADD:
       fprintf(file, "%s := %s + %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_SUB:
       fprintf(file, "%s := %s - %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_MUL:
       fprintf(file, "%s := %s * %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_DIV:
       fprintf(file, "%s := %s / %s\n", inst->result, inst->arg1, inst->arg2);
       break;
-
     case TAC_OP_EQ:
       fprintf(file, "if %s = %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_NE:
       fprintf(file, "if %s != %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_LT:
       fprintf(file, "if %s < %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_LE:
       fprintf(file, "if %s <= %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_GT:
       fprintf(file, "if %s > %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_GE:
       fprintf(file, "if %s >= %s goto %s\n", inst->arg1, inst->arg2,
               inst->result);
       break;
-
     case TAC_OP_GOTO:
       fprintf(file, "goto %s\n", inst->result);
       break;
-
-    case TAC_OP_LABEL:
-      fprintf(file, "%s:\n", inst->result);
-      break;
-
     case TAC_OP_PARAM:
       fprintf(file, "param %s\n", inst->result);
       break;
-
     case TAC_OP_CALL:
       fprintf(file, "call %s, %s\n", inst->result, inst->arg1);
       break;
-
     case TAC_OP_RETURN:
       fprintf(file, "return %s\n", inst->result);
       break;
-
     default:
       fprintf(file, "Unknown operation\n");
       break;

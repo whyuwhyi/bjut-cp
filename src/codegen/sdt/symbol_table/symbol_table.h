@@ -11,7 +11,7 @@
 /**
  * @brief Types of symbols in the table
  */
-typedef enum {
+typedef enum SymbolTableEntryType {
   SYM_VARIABLE,  /* User-defined variable */
   SYM_TEMPORARY, /* Compiler-generated temporary */
   SYM_CONSTANT   /* Constant value */
@@ -20,7 +20,7 @@ typedef enum {
 /**
  * @brief Symbol table entry
  */
-typedef struct {
+typedef struct SymbolTableEntry {
   char *name;                /* Symbol name */
   SymbolTableEntryType type; /* Symbol type */
   int value;                 /* Value for constants */
@@ -32,7 +32,7 @@ typedef struct {
 /**
  * @brief Symbol table structure
  */
-typedef struct {
+typedef struct SymbolTable {
   SymbolTableEntry *entries; /* Array of symbols */
   int count;                 /* Number of symbols */
   int capacity;              /* Capacity of the symbol array */

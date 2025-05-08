@@ -49,8 +49,8 @@ PARSER_MAIN_SRC   := src$(SEP)parser_main.c
 
 CODEGEN_SRCS      := src$(SEP)codegen$(SEP)sdt_codegen.c \
                      src$(SEP)codegen$(SEP)tac.c \
-                     src$(SEP)codegen$(SEP)label_manager$(SEP)label_manager.c \
-                     src$(SEP)codegen$(SEP)symbol_table$(SEP)symbol_table.c \
+                     src$(SEP)codegen$(SEP)sdt$(SEP)label_manager$(SEP)label_manager.c \
+                     src$(SEP)codegen$(SEP)sdt$(SEP)symbol_table$(SEP)symbol_table.c \
                      src$(SEP)codegen$(SEP)sdt$(SEP)sdt_actions.c \
                      src$(SEP)codegen$(SEP)sdt$(SEP)sdt_attributes.c
 CODEGEN_MAIN_SRC  := src$(SEP)codegen_main.c

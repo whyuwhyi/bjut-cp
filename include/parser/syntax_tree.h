@@ -35,22 +35,18 @@ typedef struct SyntaxTreeNode {
   };
   char *symbol_name; /* Symbol name for display */
 
-  /* Tree structure */
-  struct SyntaxTreeNode *parent;       /* Parent node */
-  struct SyntaxTreeNode *first_child;  /* First child node */
-  struct SyntaxTreeNode *next_sibling; /* Next sibling node */
+  /* Tree structure - using array representation only */
+  struct SyntaxTreeNode *parent;    /* Parent node */
+  struct SyntaxTreeNode **children; /* Array of child nodes */
+  int children_count;               /* Number of children */
+  int children_capacity;            /* Capacity of children array */
 
   /* Production information */
   int production_id; /* ID of the production used */
 
 #ifdef CONFIG_TAC
-  /* Semantic attributes for SDT */
+  /* Semantic attributes for code generation */
   struct SDTAttributes *attributes; /* Attributes for code generation */
-
-  /* Child nodes array for easier access during SDT */
-  struct SyntaxTreeNode **children; /* Array of child nodes */
-  int children_count;               /* Number of children */
-  int children_capacity;            /* Capacity of children array */
 #endif
 
 } SyntaxTreeNode;
@@ -111,8 +107,9 @@ SyntaxTreeNode *syntax_tree_create_epsilon(void);
  *
  * @param parent Parent node
  * @param child Child node to add
+ * @return bool True if successful, false otherwise
  */
-void syntax_tree_add_child(SyntaxTreeNode *parent, SyntaxTreeNode *child);
+bool syntax_tree_add_child(SyntaxTreeNode *parent, SyntaxTreeNode *child);
 
 /**
  * @brief Set the root node of a syntax tree

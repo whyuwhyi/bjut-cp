@@ -33,7 +33,7 @@ typedef enum {
 /**
  * @brief Three-address code instruction
  */
-typedef struct {
+typedef struct TACInst {
   TACOpType op; /* Operation type */
   char *result; /* Result operand */
   char *arg1;   /* First argument */
@@ -44,7 +44,7 @@ typedef struct {
 /**
  * @brief Three-address code program
  */
-typedef struct {
+typedef struct TACProgram {
   TACInst **instructions; /* Array of instructions */
   int count;              /* Number of instructions */
   int capacity;           /* Capacity of instructions array */

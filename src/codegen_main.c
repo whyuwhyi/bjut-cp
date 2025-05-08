@@ -8,6 +8,7 @@
 #include "common.h"
 #include "lexer_analyzer/lexer.h"
 #include "parser/parser.h"
+#include "parser/syntax_tree.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -159,6 +160,27 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  /* Parse input to generate syntax tree */
+  printf("Parsing input...\n");
+  SyntaxTree *syntax_tree = parser_parse(parser, lexer);
+  if (!syntax_tree) {
+    fprintf(stderr, "Parsing failed\n");
+    parser_destroy(parser);
+    free(source);
+    lexer_destroy(lexer);
+    return EXIT_FAILURE;
+  }
+
+  /* Get the root node of the syntax tree */
+  SyntaxTreeNode *root = syntax_tree_get_root(syntax_tree);
+  if (!root) {
+    fprintf(stderr, "Syntax tree is empty\n");
+    parser_destroy(parser);
+    free(source);
+    lexer_destroy(lexer);
+    return EXIT_FAILURE;
+  }
+
   /* Create syntax-directed translation code generator */
   printf("Creating SDT code generator...\n");
   SDTCodeGen *sdt_gen = sdt_codegen_create();
@@ -181,12 +203,13 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  /* Connect the SDT code generator to the parser */
-  parser->sdt_gen = sdt_gen;
+  /* Generate three-address code using syntax tree */
+  printf("Generating three-address code from syntax tree...\n");
+  sdt_codegen_generate(sdt_gen, root);
 
-  /* Generate three-address code during parsing */
-  printf("Generating three-address code...\n");
-  TACProgram *program = sdt_codegen_generate(sdt_gen, parser, lexer);
+  /* Get the generated program from the code generator */
+  TACProgram *program = sdt_gen->program;
+
   if (!program) {
     fprintf(stderr, "Failed to generate three-address code\n");
     const char *error = sdt_codegen_get_error(sdt_gen);
@@ -205,8 +228,8 @@ int main(int argc, char *argv[]) {
     printf("Writing three-address code to file: %s\n", output_file);
     if (!tac_program_write_to_file(program, output_file)) {
       fprintf(stderr, "Failed to write output to file '%s'\n", output_file);
-      tac_program_destroy(program);
-      sdt_codegen_destroy(sdt_gen);
+      sdt_codegen_destroy(sdt_gen); /* This will also destroy the program */
+      syntax_tree_destroy(syntax_tree);
       parser_destroy(parser);
       free(source);
       lexer_destroy(lexer);
@@ -218,8 +241,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Clean up */
-  tac_program_destroy(program);
-  sdt_codegen_destroy(sdt_gen);
+  sdt_codegen_destroy(sdt_gen); /* This will also destroy the program */
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);

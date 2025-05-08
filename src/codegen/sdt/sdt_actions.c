@@ -1,1550 +1,906 @@
 /**
- * @file sdt_actions.c
+ * @file codegen/sdt/sdt_actions.c
  * @brief Implementation of semantic actions for syntax-directed translation
  */
 
 #include "sdt_actions.h"
-#include "../sdt_internal.h"
-#include "common.h"
+#include "codegen/sdt_codegen.h"
+#include "codegen/tac.h"
+#include "label_manager/label_manager.h"
+#include "sdt_attributes.h"
+#include "symbol_table/symbol_table.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /**
- * @brief Helper function to execute semantic action for a production
+ * @brief Production IDs from grammar
  */
-bool sdt_execute_production_action(SDTCodeGen *gen, int production_id,
-                                   SyntaxTreeNode *node) {
-  /* Map production ID to semantic action function */
-  switch (production_id) {
-  case 0: /* P → L T */
-    return sdt_action_program_1(gen, node);
+enum {
+  PROD_P_LT = 0,
+  PROD_T_PT = 1,
+  PROD_T_EPSILON = 2,
+  PROD_L_S_SEMI = 3,
+  PROD_S_ASSIGN = 4,
+  PROD_S_IF_C_THEN_S_N = 5,
+  PROD_S_WHILE_C_DO_S = 6,
+  PROD_S_BEGIN_L_END = 7,
+  PROD_N_ELSE_S = 8,
+  PROD_N_EPSILON = 9,
+  PROD_C_GT = 10,
+  PROD_C_LT = 11,
+  PROD_C_EQ = 12,
+  PROD_C_GE = 13,
+  PROD_C_LE = 14,
+  PROD_C_NE = 15,
+  PROD_C_PAREN = 16,
+  PROD_E_R_X = 17,
+  PROD_X_PLUS_R_X = 18,
+  PROD_X_MINUS_R_X = 19,
+  PROD_X_EPSILON = 20,
+  PROD_R_F_Y = 21,
+  PROD_Y_MUL_F_Y = 22,
+  PROD_Y_DIV_F_Y = 23,
+  PROD_Y_EPSILON = 24,
+  PROD_F_PAREN = 25,
+  PROD_F_ID = 26,
+  PROD_F_INT8 = 27,
+  PROD_F_INT10 = 28,
+  PROD_F_INT16 = 29
+};
 
-  case 1: /* T → P T */
-    return sdt_action_program_2(gen, node);
+/* Forward declarations for all semantic actions */
+static bool action_P_LT(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_T_PT(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_T_EPS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_L_S_SEMI(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_S_ASSIGN(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_S_IF(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_S_WHILE(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_S_BEGIN(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_N_ELSE(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_N_EPS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_C_RELOP(SDTCodeGen *, SyntaxTreeNode *, TACOpType);
+static bool action_C_PAREN(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_E_R_X(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_X_PLUS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_X_MINUS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_X_EPS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_R_F_Y(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_Y_MUL(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_Y_DIV(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_Y_EPS(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_F_PAREN(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_F_ID(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_F_INT(SDTCodeGen *, SyntaxTreeNode *);
 
-  case 2:        /* T → ε */
-    return true; /* No action needed for epsilon */
+/**
+ * @brief Execute the semantic actions for a node based on its production ID
+ */
+bool sdt_execute_action(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  if (!gen || !node)
+    return false;
 
-  case 3: /* L → S ; */
-    return sdt_action_stmt_list(gen, node);
+  /* Ensure node has attributes */
+  if (!node->attributes) {
+    node->attributes = sdt_attributes_create();
+    if (!node->attributes) {
+      return false;
+    }
+  }
 
-  case 4: /* S → id = E */
-    return sdt_action_assign(gen, node);
-
-  case 5: /* S → if C then S N */
-    return sdt_action_if_else(gen, node);
-
-  case 6: /* S → while C do S */
-    return sdt_action_while(gen, node);
-
-  case 7: /* S → begin L end */
-    return sdt_action_block(gen, node);
-  case 8: /* N → else S */
-    return sdt_action_else_part(gen, node);
-
-  case 9:        /* N → ε */
-    return true; /* No action needed for epsilon */
-
-  case 10: /* C → E > E */
-    return sdt_action_condition_gt(gen, node);
-
-  case 11: /* C → E < E */
-    return sdt_action_condition_lt(gen, node);
-
-  case 12: /* C → E = E */
-    return sdt_action_condition_eq(gen, node);
-
-  case 13: /* C → E >= E */
-    return sdt_action_condition_ge(gen, node);
-
-  case 14: /* C → E <= E */
-    return sdt_action_condition_le(gen, node);
-
-  case 15: /* C → E <> E */
-    return sdt_action_condition_ne(gen, node);
-
-  case 16: /* C → ( C ) */
-    return sdt_action_condition_paren(gen, node);
-
-  case 17: /* E → R X */
-    return sdt_action_expr_term(gen, node);
-
-  case 18: /* X → + R X */
-    return sdt_action_expr_plus(gen, node);
-
-  case 19: /* X → - R X */
-    return sdt_action_expr_minus(gen, node);
-
-  case 20:       /* X → ε */
-    return true; /* No action needed for epsilon */
-
-  case 21: /* R → F Y */
-    return sdt_action_term_factor(gen, node);
-
-  case 22: /* Y → * F Y */
-    return sdt_action_term_mul(gen, node);
-
-  case 23: /* Y → / F Y */
-    return sdt_action_term_div(gen, node);
-
-  case 24:       /* Y → ε */
-    return true; /* No action needed for epsilon */
-
-  case 25: /* F → ( E ) */
-    return sdt_action_factor_paren(gen, node);
-
-  case 26: /* F → id */
-    return sdt_action_factor_id(gen, node);
-
-  case 27: /* F → int8 */
-    return sdt_action_factor_int8(gen, node);
-
-  case 28: /* F → int10 */
-    return sdt_action_factor_int10(gen, node);
-
-  case 29: /* F → int16 */
-    return sdt_action_factor_int16(gen, node);
-
+  /* Dispatch to appropriate action based on production ID */
+  switch (node->production_id) {
+  case PROD_P_LT:
+    return action_P_LT(gen, node);
+  case PROD_T_PT:
+    return action_T_PT(gen, node);
+  case PROD_T_EPSILON:
+    return action_T_EPS(gen, node);
+  case PROD_L_S_SEMI:
+    return action_L_S_SEMI(gen, node);
+  case PROD_S_ASSIGN:
+    return action_S_ASSIGN(gen, node);
+  case PROD_S_IF_C_THEN_S_N:
+    return action_S_IF(gen, node);
+  case PROD_S_WHILE_C_DO_S:
+    return action_S_WHILE(gen, node);
+  case PROD_S_BEGIN_L_END:
+    return action_S_BEGIN(gen, node);
+  case PROD_N_ELSE_S:
+    return action_N_ELSE(gen, node);
+  case PROD_N_EPSILON:
+    return action_N_EPS(gen, node);
+  case PROD_C_GT:
+    return action_C_RELOP(gen, node, TAC_OP_GT);
+  case PROD_C_LT:
+    return action_C_RELOP(gen, node, TAC_OP_LT);
+  case PROD_C_EQ:
+    return action_C_RELOP(gen, node, TAC_OP_EQ);
+  case PROD_C_GE:
+    return action_C_RELOP(gen, node, TAC_OP_GE);
+  case PROD_C_LE:
+    return action_C_RELOP(gen, node, TAC_OP_LE);
+  case PROD_C_NE:
+    return action_C_RELOP(gen, node, TAC_OP_NE);
+  case PROD_C_PAREN:
+    return action_C_PAREN(gen, node);
+  case PROD_E_R_X:
+    return action_E_R_X(gen, node);
+  case PROD_X_PLUS_R_X:
+    return action_X_PLUS(gen, node);
+  case PROD_X_MINUS_R_X:
+    return action_X_MINUS(gen, node);
+  case PROD_X_EPSILON:
+    return action_X_EPS(gen, node);
+  case PROD_R_F_Y:
+    return action_R_F_Y(gen, node);
+  case PROD_Y_MUL_F_Y:
+    return action_Y_MUL(gen, node);
+  case PROD_Y_DIV_F_Y:
+    return action_Y_DIV(gen, node);
+  case PROD_Y_EPSILON:
+    return action_Y_EPS(gen, node);
+  case PROD_F_PAREN:
+    return action_F_PAREN(gen, node);
+  case PROD_F_ID:
+    return action_F_ID(gen, node);
+  case PROD_F_INT8:
+  case PROD_F_INT10:
+  case PROD_F_INT16:
+    return action_F_INT(gen, node);
   default:
-    /* No semantic action for this production */
     return true;
   }
 }
 
 /**
- * @brief Semantic action for program with single statement list
+ * @brief Semantic action for P → L T
  *
- * P → L T { P.code = L.code || T.code }
+ * P.code = L.code || T.code
  */
-bool sdt_action_program_1(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
-  }
+static bool action_P_LT(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Process children: [0]=L, [1]=T */
+  sdt_codegen_generate(gen, node->children[0]);
+  sdt_codegen_generate(gen, node->children[1]);
 
-  /* Program inherits code from statement list and tail - no specific action
-   * needed */
   DEBUG_PRINT("Executed P → L T action");
   return true;
 }
 
 /**
- * @brief Semantic action for program with multiple statement lists
+ * @brief Semantic action for T → P T
  *
- * T → P T { T.code = P.code || T.code }
+ * T.code = P.code || T.code
  */
-bool sdt_action_program_2(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
-  }
+static bool action_T_PT(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Process children: [0]=P, [1]=T */
+  sdt_codegen_generate(gen, node->children[0]);
+  sdt_codegen_generate(gen, node->children[1]);
 
-  /* Program concatenates code from both parts - no specific action needed */
   DEBUG_PRINT("Executed T → P T action");
   return true;
 }
 
 /**
- * @brief Semantic action for statement list
+ * @brief Semantic action for T → ε
  *
- * L → S ; { L.code = S.code }
+ * T.code = ''
  */
-bool sdt_action_stmt_list(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
-  }
+static bool action_T_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* No code to generate for epsilon */
+  DEBUG_PRINT("Executed T → ε action");
+  return true;
+}
 
-  /* Statement list inherits code from statement - no specific action needed */
+/**
+ * @brief Semantic action for L → S ;
+ *
+ * L.code = S.code
+ */
+static bool action_L_S_SEMI(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Process statement: [0]=S */
+  sdt_codegen_generate(gen, node->children[0]);
+
   DEBUG_PRINT("Executed L → S ; action");
   return true;
 }
 
 /**
- * @brief Semantic action for block statement
+ * @brief Semantic action for S → id = E
  *
- * S → begin L end { S.code = L.code }
+ * S.code = E.code || gen(id.place ':=' E.place)
  */
-bool sdt_action_block(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
+static bool action_S_ASSIGN(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]=id, [1]='=', [2]=E */
+  SyntaxTreeNode *id_node = node->children[0];
+  SyntaxTreeNode *E_node = node->children[2];
+
+  /* Generate code for the expression */
+  sdt_codegen_generate(gen, E_node);
+
+  /* Generate assignment instruction */
+  tac_program_add_inst(gen->program, TAC_OP_ASSIGN,
+                       id_node->token.str_val,    /* destination */
+                       E_node->attributes->place, /* source */
+                       NULL, 0);
+
+  DEBUG_PRINT("Generated assignment: %s := %s", id_node->token.str_val,
+              E_node->attributes->place);
+  return true;
+}
+
+/**
+ * @brief Semantic action for S → if C then S1 N
+ *
+ * If N is epsilon:
+ *   C.true = newlabel;
+ *   C.false = S.next;
+ *   S1.next = S.next;
+ *   S.code = C.code || gen(C.true ':') || S1.code;
+ * Else:
+ *   C.true = newlabel;
+ *   C.false = newlabel;
+ *   S1.next = S.next;
+ *   N.stmt.next = S.next;
+ *   S.code = C.code || gen(C.true ':') || S1.code ||
+ *            gen('goto' S.next) || gen(C.false ':') || N.code;
+ */
+static bool action_S_IF(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='if', [1]=C, [2]='then', [3]=S1, [4]=N */
+  SyntaxTreeNode *C_node = node->children[1];
+  SyntaxTreeNode *S1_node = node->children[3];
+  SyntaxTreeNode *N_node = node->children[4];
+
+  /* Ensure condition node has attributes */
+  if (!C_node->attributes) {
+    C_node->attributes = sdt_attributes_create();
+    if (!C_node->attributes) {
+      return false;
+    }
   }
 
-  /* Block statement inherits code from statement list - no specific action
-   * needed */
+  /* Generate true/false labels for condition */
+  char *true_label = label_manager_new_label(gen->label_manager);
+  C_node->attributes->true_label = true_label;
+
+  /* Check if there's an else part */
+  bool has_else = (N_node->production_id == PROD_N_ELSE_S);
+
+  /* Get or create next label */
+  char *next_label = NULL;
+  if (node->attributes->next_label) {
+    next_label = safe_strdup(node->attributes->next_label);
+  } else {
+    next_label = label_manager_new_label(gen->label_manager);
+  }
+
+  /* Set false label based on whether there's an else part */
+  char *false_label = NULL;
+  if (has_else) {
+    false_label = label_manager_new_label(gen->label_manager);
+  } else {
+    false_label = safe_strdup(next_label);
+  }
+  C_node->attributes->false_label = false_label;
+
+  /* Generate code for the condition */
+  sdt_codegen_generate(gen, C_node);
+
+  /* Generate true label for then branch */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
+
+  /* Pass next_label to then branch */
+  if (!S1_node->attributes) {
+    S1_node->attributes = sdt_attributes_create();
+  }
+  S1_node->attributes->next_label = safe_strdup(next_label);
+
+  /* Generate code for then branch */
+  sdt_codegen_generate(gen, S1_node);
+
+  if (has_else) {
+    /* Add jump to next after then branch */
+    tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL, 0);
+
+    /* Generate false label for else branch */
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
+                         0);
+
+    /* Pass next_label to else branch's statement */
+    SyntaxTreeNode *else_stmt = N_node->children[1];
+    if (!else_stmt->attributes) {
+      else_stmt->attributes = sdt_attributes_create();
+    }
+    else_stmt->attributes->next_label = safe_strdup(next_label);
+
+    /* Generate code for else branch */
+    sdt_codegen_generate(gen, else_stmt);
+
+    /* Generate next label after else branch */
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
+  } else {
+    /* Generate false label (which is the same as next_label) */
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
+                         0);
+  }
+
+  /* Clean up */
+  if (next_label != node->attributes->next_label) {
+    free(next_label);
+  }
+
+  DEBUG_PRINT(
+      "Generated if-else statement with labels: true=%s, false=%s, next=%s",
+      true_label, false_label, next_label);
+  return true;
+}
+
+/**
+ * @brief Semantic action for S → while C do S1
+ *
+ * S.begin = newlabel;
+ * C.true = newlabel;
+ * C.false = S.next;
+ * S1.next = S.begin;
+ * S.code = gen(S.begin ':') || C.code || gen(C.true ':') || S1.code ||
+ * gen('goto' S.begin)
+ */
+static bool action_S_WHILE(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='while', [1]=C, [2]='do', [3]=S1 */
+  SyntaxTreeNode *C_node = node->children[1];
+  SyntaxTreeNode *S1_node = node->children[3];
+
+  /* Ensure condition node has attributes */
+  if (!C_node->attributes) {
+    C_node->attributes = sdt_attributes_create();
+  }
+
+  /* Get or create next label */
+  char *next_label = NULL;
+  if (node->attributes->next_label) {
+    next_label = safe_strdup(node->attributes->next_label);
+  } else {
+    next_label = label_manager_new_label(gen->label_manager);
+  }
+
+  /* Create begin label for loop */
+  char *begin_label = label_manager_new_label(gen->label_manager);
+  node->attributes->begin_label = begin_label;
+
+  /* Create true label for condition */
+  char *true_label = label_manager_new_label(gen->label_manager);
+  C_node->attributes->true_label = true_label;
+
+  /* Set false label to next label */
+  C_node->attributes->false_label = safe_strdup(next_label);
+
+  /* Generate begin label at loop start */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL, 0);
+
+  /* Generate code for condition */
+  sdt_codegen_generate(gen, C_node);
+
+  /* Generate true label for loop body */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
+
+  /* Pass begin_label as next_label to loop body */
+  if (!S1_node->attributes) {
+    S1_node->attributes = sdt_attributes_create();
+  }
+  S1_node->attributes->next_label = safe_strdup(begin_label);
+
+  /* Generate code for loop body */
+  sdt_codegen_generate(gen, S1_node);
+
+  /* Generate goto back to begin label */
+  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL, 0);
+
+  /* Generate false label after loop */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
+
+  /* Clean up */
+  if (next_label != node->attributes->next_label) {
+    free(next_label);
+  }
+
+  DEBUG_PRINT(
+      "Generated while statement with labels: begin=%s, true=%s, false=%s",
+      begin_label, true_label, next_label);
+  return true;
+}
+
+/**
+ * @brief Semantic action for S → begin L end
+ *
+ * S.code = L.code
+ */
+static bool action_S_BEGIN(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get child: [0]='begin', [1]=L, [2]='end' */
+  SyntaxTreeNode *L_node = node->children[1];
+
+  /* Pass next_label down to L */
+  if (!L_node->attributes) {
+    L_node->attributes = sdt_attributes_create();
+  }
+  if (node->attributes && node->attributes->next_label) {
+    L_node->attributes->next_label = safe_strdup(node->attributes->next_label);
+  }
+
+  /* Generate code for statement list */
+  sdt_codegen_generate(gen, L_node);
+
   DEBUG_PRINT("Executed S → begin L end action");
   return true;
 }
 
 /**
- * @brief Semantic action for else part
+ * @brief Semantic action for N → else S
  *
- * N → else S { N.code = S.code }
+ * N.isEpsilon = false;
+ * N.code = S.code;
+ * N.stmt = S;
  */
-bool sdt_action_else_part(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
-  }
-
-  /* Else part inherits code from statement - no specific action needed */
+static bool action_N_ELSE(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* This is handled in the if-statement action */
   DEBUG_PRINT("Executed N → else S action");
   return true;
 }
 
 /**
- * @brief Semantic action for assignment statement
+ * @brief Semantic action for N → ε
  *
- * S → id = E { S.code = E.code || gen(id.place ':=' E.place) }
+ * N.isEpsilon = true;
+ * N.code = '';
  */
-bool sdt_action_assign(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *id_node = node->children[0];   /* id */
-  SyntaxTreeNode *expr_node = node->children[2]; /* E */
-
-  if (!id_node || !expr_node) {
-    return false;
-  }
-
-  /* Get variable name from id token */
-  const char *var_name = id_node->token.str_val;
-
-  /* Get expression place from E attributes */
-  if (!expr_node->attributes || !expr_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  const char *expr_place = expr_node->attributes->place;
-
-  /* Generate assignment instruction */
-  tac_program_add_inst(gen->program, TAC_OP_ASSIGN, var_name, /* result */
-                       expr_place,                            /* arg1 */
-                       NULL,                                  /* arg2 */
-                       0                                      /* line number */
-  );
-
-  DEBUG_PRINT("Generated assignment: %s := %s", var_name, expr_place);
+static bool action_N_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* No code to generate for epsilon */
+  DEBUG_PRINT("Executed N → ε action");
   return true;
 }
 
 /**
- * @brief Semantic action for if-else statement
+ * @brief Semantic action for C → E1 op E2
  *
- * S → if C then S N
- * {
- *   C.true = newlabel;
- *   C.false = newlabel;
- *   S.next = newlabel;
- *   S.code = C.code || gen(C.true ':') || S1.code
- *          || gen('goto' S.next) || gen(C.false ':')
- *          || N.code || gen(S.next ':');
- * }
+ * C.code = E1.code || E2.code ||
+ *          gen('if' E1.place 'op' E2.place 'goto' C.true) ||
+ *          gen('goto' C.false)
  */
-bool sdt_action_if_else(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 4) {
-    return false;
+static bool action_C_RELOP(SDTCodeGen *gen, SyntaxTreeNode *node,
+                           TACOpType op) {
+  /* Get children: [0]=E1, [1]=op, [2]=E2 */
+  SyntaxTreeNode *E1_node = node->children[0];
+  SyntaxTreeNode *E2_node = node->children[2];
+
+  /* Generate code for expressions */
+  sdt_codegen_generate(gen, E1_node);
+  sdt_codegen_generate(gen, E2_node);
+
+  /* Get or create true/false labels */
+  char *true_label = NULL;
+  char *false_label = NULL;
+
+  if (node->attributes->true_label) {
+    true_label = node->attributes->true_label;
+  } else {
+    true_label = label_manager_new_label(gen->label_manager);
+    node->attributes->true_label = true_label;
   }
 
-  /* Get children */
-  SyntaxTreeNode *cond_node = node->children[1];      /* C */
-  SyntaxTreeNode *then_node = node->children[3];      /* S1 */
-  SyntaxTreeNode *else_part_node = node->children[4]; /* N */
-
-  if (!cond_node || !then_node || !else_part_node) {
-    return false;
+  if (node->attributes->false_label) {
+    false_label = node->attributes->false_label;
+  } else {
+    false_label = label_manager_new_label(gen->label_manager);
+    node->attributes->false_label = false_label;
   }
 
-  /* Create required labels if they don't exist */
-  if (!cond_node->attributes) {
-    cond_node->attributes = sdt_attributes_create();
-    if (!cond_node->attributes) {
-      return false;
-    }
-  }
+  /* Generate conditional jump */
+  tac_program_add_inst(gen->program, op, true_label, E1_node->attributes->place,
+                       E2_node->attributes->place, 0);
 
-  /* Create labels for condition */
-  if (!cond_node->attributes->true_label) {
-    cond_node->attributes->true_label =
-        label_manager_new_label(gen->label_manager);
-  }
+  /* Generate jump to false label */
+  tac_program_add_inst(gen->program, TAC_OP_GOTO, false_label, NULL, NULL, 0);
 
-  if (!cond_node->attributes->false_label) {
-    cond_node->attributes->false_label =
-        label_manager_new_label(gen->label_manager);
-  }
-
-  /* Create next label for end of if-else */
-  char *next_label = label_manager_new_label(gen->label_manager);
-
-  /* Generate true label after condition */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL,
-                       cond_node->attributes->true_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate jump to next label after then part */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate false label for else part */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL,
-                       cond_node->attributes->false_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate next label after else part */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Free next label (TAC program has its own copy) */
-  free(next_label);
-
-  DEBUG_PRINT(
-      "Generated if-else statement with labels: true=%s, false=%s, next=%s",
-      cond_node->attributes->true_label, cond_node->attributes->false_label,
-      next_label);
+  DEBUG_PRINT("Generated condition with relational operator: %s",
+              tac_op_type_to_string(op));
   return true;
 }
 
 /**
- * @brief Semantic action for while statement
+ * @brief Semantic action for C → ( C1 )
  *
- * S → while C do S1
- * {
- *   S.begin = newlabel;
- *   C.true = newlabel;
- *   C.false = S.next = newlabel;
- *   S.code = gen(S.begin ':') || C.code
- *          || gen(C.true ':') || S1.code
- *          || gen('goto' S.begin) || gen(S.next ':');
- * }
+ * C.code = C1.code;
+ * C1.true = C.true;
+ * C1.false = C.false;
  */
-bool sdt_action_while(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 4) {
-    return false;
+static bool action_C_PAREN(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get child: [0]='(', [1]=C1, [2]=')' */
+  SyntaxTreeNode *C1_node = node->children[1];
+
+  /* Pass true/false labels down to inner condition */
+  if (!C1_node->attributes) {
+    C1_node->attributes = sdt_attributes_create();
   }
 
-  /* Get children */
-  SyntaxTreeNode *cond_node = node->children[1]; /* C */
-  SyntaxTreeNode *body_node = node->children[3]; /* S1 */
-
-  if (!cond_node || !body_node) {
-    return false;
+  if (node->attributes->true_label) {
+    C1_node->attributes->true_label = safe_strdup(node->attributes->true_label);
   }
 
-  /* Create required labels if they don't exist */
-  if (!cond_node->attributes) {
-    cond_node->attributes = sdt_attributes_create();
-    if (!cond_node->attributes) {
-      return false;
-    }
+  if (node->attributes->false_label) {
+    C1_node->attributes->false_label =
+        safe_strdup(node->attributes->false_label);
   }
 
-  /* Create begin label for loop start */
-  char *begin_label = label_manager_new_label(gen->label_manager);
+  /* Generate code for inner condition */
+  sdt_codegen_generate(gen, C1_node);
 
-  /* Create labels for condition */
-  if (!cond_node->attributes->true_label) {
-    cond_node->attributes->true_label =
-        label_manager_new_label(gen->label_manager);
+  /* Inherit true/false labels from inner condition */
+  if (C1_node->attributes->true_label && !node->attributes->true_label) {
+    node->attributes->true_label = safe_strdup(C1_node->attributes->true_label);
   }
 
-  if (!cond_node->attributes->false_label) {
-    cond_node->attributes->false_label =
-        label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate begin label at loop start */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate true label after condition */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL,
-                       cond_node->attributes->true_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate goto begin after body */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Generate false label after loop */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL,
-                       cond_node->attributes->false_label, NULL, NULL,
-                       0 /* line number not available */
-  );
-
-  /* Free begin label (TAC program has its own copy) */
-  free(begin_label);
-
-  DEBUG_PRINT(
-      "Generated while statement with labels: begin=%s, true=%s, false=%s",
-      begin_label, cond_node->attributes->true_label,
-      cond_node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for condition with parentheses
- *
- * C → ( C )
- */
-bool sdt_action_condition_paren(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get condition node */
-  SyntaxTreeNode *cond_node = node->children[1]; /* C */
-
-  if (!cond_node) {
-    return false;
-  }
-
-  /* Get condition attributes */
-  if (!cond_node->attributes) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Condition does not have valid attributes");
-    return false;
-  }
-
-  /* Create attributes for this node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Copy condition attributes to this node */
-  if (cond_node->attributes->true_label) {
-    if (node->attributes->true_label)
-      free(node->attributes->true_label);
-    node->attributes->true_label =
-        safe_strdup(cond_node->attributes->true_label);
-  }
-
-  if (cond_node->attributes->false_label) {
-    if (node->attributes->false_label)
-      free(node->attributes->false_label);
+  if (C1_node->attributes->false_label && !node->attributes->false_label) {
     node->attributes->false_label =
-        safe_strdup(cond_node->attributes->false_label);
+        safe_strdup(C1_node->attributes->false_label);
   }
 
-  DEBUG_PRINT("Executed C → ( C ) action");
+  DEBUG_PRINT("Executed C → ( C1 ) action");
   return true;
 }
 
 /**
- * @brief Semantic action for greater-than condition
+ * @brief Semantic action for E → R X
  *
- * C → E1 > E2
- * {
- *   C.code = E1.code || E2.code ||
- *            gen('if' E1.place '>' E2.place 'goto' C.true) ||
- *            gen('goto' C.false)
- * }
+ * E.place = X.synthesized;
+ * E.code = R.code || X.code;
+ * X.inherited = R.place;
  */
-bool sdt_action_condition_gt(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
+static bool action_E_R_X(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]=R, [1]=X */
+  SyntaxTreeNode *R_node = node->children[0];
+  SyntaxTreeNode *X_node = node->children[1];
+
+  /* Generate code for term */
+  sdt_codegen_generate(gen, R_node);
+
+  /* Pass R.place to X as inherited attribute */
+  if (!X_node->attributes) {
+    X_node->attributes = sdt_attributes_create();
   }
+  X_node->attributes->place = safe_strdup(R_node->attributes->place);
 
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
+  /* Generate code for expression tail */
+  sdt_codegen_generate(gen, X_node);
 
-  if (!left_node || !right_node) {
-    return false;
-  }
+  /* Inherit synthesized place from X */
+  node->attributes->place = safe_strdup(X_node->attributes->place);
 
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_GT,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E > E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
+  DEBUG_PRINT("Executed E → R X action: place = %s", node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for less-than condition
+ * @brief Semantic action for X → + R X1
  *
- * C → E1 < E2
- * {
- *   C.code = E1.code || E2.code ||
- *            gen('if' E1.place '<' E2.place 'goto' C.true) ||
- *            gen('goto' C.false)
- * }
+ * X.synthesized = newtemp;
+ * X.code = R.code || gen(X.synthesized ':=' X.inherited '+' R.place) ||
+ * X1.code; X1.inherited = X.synthesized;
  */
-bool sdt_action_condition_lt(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
+static bool action_X_PLUS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='+', [1]=R, [2]=X1 */
+  SyntaxTreeNode *R_node = node->children[1];
+  SyntaxTreeNode *X1_node = node->children[2];
 
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
+  /* Generate code for term */
+  sdt_codegen_generate(gen, R_node);
 
-  if (!left_node || !right_node) {
-    return false;
-  }
-
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_LT,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E < E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for equality condition
- *
- * C → E1 = E2
- * {
- *   C.code = E1.code || E2.code ||
- *            gen('if' E1.place '=' E2.place 'goto' C.true) ||
- *            gen('goto' C.false)
- * }
- */
-bool sdt_action_condition_eq(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
-
-  if (!left_node || !right_node) {
-    return false;
-  }
-
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_EQ,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E = E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for greater-than-or-equal condition
- *
- * C → E1 >= E2
- */
-bool sdt_action_condition_ge(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
-
-  if (!left_node || !right_node) {
-    return false;
-  }
-
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_GE,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E >= E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for less-than-or-equal condition
- *
- * C → E1 <= E2
- */
-bool sdt_action_condition_le(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
-
-  if (!left_node || !right_node) {
-    return false;
-  }
-
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_LE,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E <= E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for not-equal condition
- *
- * C → E1 <> E2
- */
-bool sdt_action_condition_ne(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *left_node = node->children[0];  /* E1 */
-  SyntaxTreeNode *right_node = node->children[2]; /* E2 */
-
-  if (!left_node || !right_node) {
-    return false;
-  }
-
-  /* Get expression places */
-  if (!left_node->attributes || !left_node->attributes->place ||
-      !right_node->attributes || !right_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for condition node if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Generate labels if needed */
-  if (!node->attributes->true_label) {
-    node->attributes->true_label = label_manager_new_label(gen->label_manager);
-  }
-
-  if (!node->attributes->false_label) {
-    node->attributes->false_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* Generate conditional jump instruction */
-  tac_program_add_inst(
-      gen->program, TAC_OP_NE,
-      node->attributes->true_label,  /* goto this label if condition is true */
-      left_node->attributes->place,  /* left operand */
-      right_node->attributes->place, /* right operand */
-      0                              /* line number not available */
-  );
-
-  /* Generate jump to false label */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, node->attributes->false_label,
-                       NULL, NULL, 0 /* line number not available */
-  );
-
-  DEBUG_PRINT("Generated condition E <> E with jumps to: true=%s, false=%s",
-              node->attributes->true_label, node->attributes->false_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for addition expression
- *
- * X → + R X
- * {
- *   X.place = newtemp;
- *   X.code = R.code || gen(X.place ':=' X.prev_place '+' R.place) || X'.code
- * }
- */
-bool sdt_action_expr_plus(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get children */
-  SyntaxTreeNode *plus_node = node->children[0]; /* + */
-  SyntaxTreeNode *term_node = node->children[1]; /* R */
-  SyntaxTreeNode *x_node = node->children[2];    /* X */
-
-  if (!plus_node || !term_node) {
-    return false;
-  }
-
-  /* Get parent node which should be E → R X */
-  SyntaxTreeNode *parent = node->parent;
-  if (!parent || parent->children_count < 2) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Parent expression node not found or invalid");
-    return false;
-  }
-
-  /* Get R node from parent which has the left operand */
-  SyntaxTreeNode *left_node = parent->children[0];
-  if (!left_node || !left_node->attributes || !left_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Left operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Get operand places */
-  if (!term_node->attributes || !term_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Right operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for result if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Create a new temporary for the result */
+  /* Create temporary for result */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp) {
     return false;
   }
-
-  /* Store result place */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = temp;
 
   /* Generate addition instruction */
-  tac_program_add_inst(gen->program, TAC_OP_ADD,
-                       node->attributes->place,      /* result */
-                       left_node->attributes->place, /* left operand */
-                       term_node->attributes->place, /* right operand */
-                       0 /* line number not available */
-  );
+  tac_program_add_inst(gen->program, TAC_OP_ADD, temp, /* result */
+                       node->attributes->place,   /* inherited from parent */
+                       R_node->attributes->place, /* right operand */
+                       0);
 
-  DEBUG_PRINT("Generated addition: %s := %s + %s", node->attributes->place,
-              left_node->attributes->place, term_node->attributes->place);
-
-  /* Pass the result to parent expression node */
-  if (parent->attributes) {
-    if (parent->attributes->place) {
-      free(parent->attributes->place);
-    }
-    parent->attributes->place = safe_strdup(node->attributes->place);
-  } else {
-    parent->attributes = sdt_attributes_create();
-    if (parent->attributes) {
-      parent->attributes->place = safe_strdup(node->attributes->place);
-    }
+  /* Pass temp to X1 as inherited attribute */
+  if (!X1_node->attributes) {
+    X1_node->attributes = sdt_attributes_create();
   }
+  X1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate code for expression tail */
+  sdt_codegen_generate(gen, X1_node);
+
+  /* Inherit synthesized place from X1 */
+  node->attributes->place = safe_strdup(X1_node->attributes->place);
+
+  /* Clean up */
+  free(temp);
+
+  DEBUG_PRINT("Generated addition: %s := %s + %s", temp,
+              node->attributes->place, R_node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for subtraction expression
+ * @brief Semantic action for X → - R X1
  *
- * X → - R X
- * {
- *   X.place = newtemp;
- *   X.code = R.code || gen(X.place ':=' X.prev_place '-' R.place) || X'.code
- * }
+ * X.synthesized = newtemp;
+ * X.code = R.code || gen(X.synthesized ':=' X.inherited '-' R.place) ||
+ * X1.code; X1.inherited = X.synthesized;
  */
-bool sdt_action_expr_minus(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
+static bool action_X_MINUS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='-', [1]=R, [2]=X1 */
+  SyntaxTreeNode *R_node = node->children[1];
+  SyntaxTreeNode *X1_node = node->children[2];
 
-  /* Get children */
-  SyntaxTreeNode *minus_node = node->children[0]; /* - */
-  SyntaxTreeNode *term_node = node->children[1];  /* R */
-  SyntaxTreeNode *x_node = node->children[2];     /* X */
+  /* Generate code for term */
+  sdt_codegen_generate(gen, R_node);
 
-  if (!minus_node || !term_node) {
-    return false;
-  }
-
-  /* Get parent node which should be E → R X */
-  SyntaxTreeNode *parent = node->parent;
-  if (!parent || parent->children_count < 2) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Parent expression node not found or invalid");
-    return false;
-  }
-
-  /* Get R node from parent which has the left operand */
-  SyntaxTreeNode *left_node = parent->children[0];
-  if (!left_node || !left_node->attributes || !left_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Left operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Get operand places */
-  if (!term_node->attributes || !term_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Right operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for result if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Create a new temporary for the result */
+  /* Create temporary for result */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp) {
     return false;
   }
-
-  /* Store result place */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = temp;
 
   /* Generate subtraction instruction */
-  tac_program_add_inst(gen->program, TAC_OP_SUB,
-                       node->attributes->place,      /* result */
-                       left_node->attributes->place, /* left operand */
-                       term_node->attributes->place, /* right operand */
-                       0 /* line number not available */
-  );
+  tac_program_add_inst(gen->program, TAC_OP_SUB, temp, /* result */
+                       node->attributes->place,   /* inherited from parent */
+                       R_node->attributes->place, /* right operand */
+                       0);
 
-  DEBUG_PRINT("Generated subtraction: %s := %s - %s", node->attributes->place,
-              left_node->attributes->place, term_node->attributes->place);
-
-  /* Pass the result to parent expression node */
-  if (parent->attributes) {
-    if (parent->attributes->place) {
-      free(parent->attributes->place);
-    }
-    parent->attributes->place = safe_strdup(node->attributes->place);
-  } else {
-    parent->attributes = sdt_attributes_create();
-    if (parent->attributes) {
-      parent->attributes->place = safe_strdup(node->attributes->place);
-    }
+  /* Pass temp to X1 as inherited attribute */
+  if (!X1_node->attributes) {
+    X1_node->attributes = sdt_attributes_create();
   }
+  X1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate code for expression tail */
+  sdt_codegen_generate(gen, X1_node);
+
+  /* Inherit synthesized place from X1 */
+  node->attributes->place = safe_strdup(X1_node->attributes->place);
+
+  /* Clean up */
+  free(temp);
+
+  DEBUG_PRINT("Generated subtraction: %s := %s - %s", temp,
+              node->attributes->place, R_node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for expression from term
+ * @brief Semantic action for X → ε
  *
- * E → R X { E.place = R.place if X.place is null, else E.place = X.place }
+ * X.synthesized = X.inherited;
+ * X.code = '';
  */
-bool sdt_action_expr_term(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
-  }
-
-  /* Get term node */
-  SyntaxTreeNode *term_node = node->children[0]; /* R */
-  SyntaxTreeNode *x_node = node->children[1];    /* X */
-
-  if (!term_node) {
-    return false;
-  }
-
-  /* Create attributes for expression if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Check if X node has a place (indicating an operation was performed) */
-  if (x_node && x_node->attributes && x_node->attributes->place) {
-    /* Copy X place to expression place */
-    if (node->attributes->place) {
-      free(node->attributes->place);
-    }
-    node->attributes->place = safe_strdup(x_node->attributes->place);
-    DEBUG_PRINT("Expression inherited place from X: %s",
-                node->attributes->place);
-  } else if (term_node->attributes && term_node->attributes->place) {
-    /* Copy term place to expression place */
-    if (node->attributes->place) {
-      free(node->attributes->place);
-    }
-    node->attributes->place = safe_strdup(term_node->attributes->place);
-    DEBUG_PRINT("Expression inherited place from term: %s",
-                node->attributes->place);
-  } else {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Neither term nor X has a valid place attribute");
-    return false;
-  }
-
+static bool action_X_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* X.synthesized = X.inherited (place already inherited) */
+  DEBUG_PRINT("Executed X → ε action: place = %s", node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for term from factor and term tail
+ * @brief Semantic action for R → F Y
  *
- * R → F Y { R.place = F.place if Y.place is null, else R.place = Y.place }
+ * R.place = Y.synthesized;
+ * R.code = F.code || Y.code;
+ * Y.inherited = F.place;
  */
-bool sdt_action_term_factor(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 2) {
-    return false;
+static bool action_R_F_Y(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]=F, [1]=Y */
+  SyntaxTreeNode *F_node = node->children[0];
+  SyntaxTreeNode *Y_node = node->children[1];
+
+  /* Generate code for factor */
+  sdt_codegen_generate(gen, F_node);
+
+  /* Pass F.place to Y as inherited attribute */
+  if (!Y_node->attributes) {
+    Y_node->attributes = sdt_attributes_create();
   }
+  Y_node->attributes->place = safe_strdup(F_node->attributes->place);
 
-  /* Get factor node */
-  SyntaxTreeNode *factor_node = node->children[0]; /* F */
-  SyntaxTreeNode *y_node = node->children[1];      /* Y */
+  /* Generate code for term tail */
+  sdt_codegen_generate(gen, Y_node);
 
-  if (!factor_node) {
-    return false;
-  }
+  /* Inherit synthesized place from Y */
+  node->attributes->place = safe_strdup(Y_node->attributes->place);
 
-  /* Create attributes for term if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Check if Y node has a place (indicating an operation was performed) */
-  if (y_node && y_node->attributes && y_node->attributes->place) {
-    /* Copy Y place to term place */
-    if (node->attributes->place) {
-      free(node->attributes->place);
-    }
-    node->attributes->place = safe_strdup(y_node->attributes->place);
-    DEBUG_PRINT("Term inherited place from Y: %s", node->attributes->place);
-  } else if (factor_node->attributes && factor_node->attributes->place) {
-    /* Copy factor place to term place */
-    if (node->attributes->place) {
-      free(node->attributes->place);
-    }
-    node->attributes->place = safe_strdup(factor_node->attributes->place);
-    DEBUG_PRINT("Term inherited place from factor: %s",
-                node->attributes->place);
-  } else {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Neither factor nor Y has a valid place attribute");
-    return false;
-  }
-
+  DEBUG_PRINT("Executed R → F Y action: place = %s", node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for multiplication term
+ * @brief Semantic action for Y → * F Y1
  *
- * Y → * F Y
- * {
- *   Y.place = newtemp;
- *   Y.code = F.code || gen(Y.place ':=' Y.prev_place '*' F.place) || Y'.code
- * }
+ * Y.synthesized = newtemp;
+ * Y.code = F.code || gen(Y.synthesized ':=' Y.inherited '*' F.place) ||
+ * Y1.code; Y1.inherited = Y.synthesized;
  */
-bool sdt_action_term_mul(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
+static bool action_Y_MUL(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='*', [1]=F, [2]=Y1 */
+  SyntaxTreeNode *F_node = node->children[1];
+  SyntaxTreeNode *Y1_node = node->children[2];
 
-  /* Get children */
-  SyntaxTreeNode *mul_node = node->children[0];    /* * */
-  SyntaxTreeNode *factor_node = node->children[1]; /* F */
-  SyntaxTreeNode *y_node = node->children[2];      /* Y */
+  /* Generate code for factor */
+  sdt_codegen_generate(gen, F_node);
 
-  if (!mul_node || !factor_node) {
-    return false;
-  }
-
-  /* Get parent node which should be R → F Y */
-  SyntaxTreeNode *parent = node->parent;
-  if (!parent || parent->children_count < 2) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Parent term node not found or invalid");
-    return false;
-  }
-
-  /* Get F node from parent which has the left operand */
-  SyntaxTreeNode *left_node = parent->children[0];
-  if (!left_node || !left_node->attributes || !left_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Left operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Get operand places */
-  if (!factor_node->attributes || !factor_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Right operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for result if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Create a new temporary for the result */
+  /* Create temporary for result */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp) {
     return false;
   }
-
-  /* Store result place */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = temp;
 
   /* Generate multiplication instruction */
-  tac_program_add_inst(gen->program, TAC_OP_MUL,
-                       node->attributes->place,        /* result */
-                       left_node->attributes->place,   /* left operand */
-                       factor_node->attributes->place, /* right operand */
-                       0 /* line number not available */
-  );
+  tac_program_add_inst(gen->program, TAC_OP_MUL, temp, /* result */
+                       node->attributes->place,   /* inherited from parent */
+                       F_node->attributes->place, /* right operand */
+                       0);
 
-  DEBUG_PRINT("Generated multiplication: %s := %s * %s",
-              node->attributes->place, left_node->attributes->place,
-              factor_node->attributes->place);
-
-  /* Pass the result to parent term node */
-  if (parent->attributes) {
-    if (parent->attributes->place) {
-      free(parent->attributes->place);
-    }
-    parent->attributes->place = safe_strdup(node->attributes->place);
-  } else {
-    parent->attributes = sdt_attributes_create();
-    if (parent->attributes) {
-      parent->attributes->place = safe_strdup(node->attributes->place);
-    }
+  /* Pass temp to Y1 as inherited attribute */
+  if (!Y1_node->attributes) {
+    Y1_node->attributes = sdt_attributes_create();
   }
+  Y1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate code for term tail */
+  sdt_codegen_generate(gen, Y1_node);
+
+  /* Inherit synthesized place from Y1 */
+  node->attributes->place = safe_strdup(Y1_node->attributes->place);
+
+  /* Clean up */
+  free(temp);
+
+  DEBUG_PRINT("Generated multiplication: %s := %s * %s", temp,
+              node->attributes->place, F_node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for division term
+ * @brief Semantic action for Y → / F Y1
  *
- * Y → / F Y
- * {
- *   Y.place = newtemp;
- *   Y.code = F.code || gen(Y.place ':=' Y.prev_place '/' F.place) || Y'.code
- * }
+ * Y.synthesized = newtemp;
+ * Y.code = F.code || gen(Y.synthesized ':=' Y.inherited '/' F.place) ||
+ * Y1.code; Y1.inherited = Y.synthesized;
  */
-bool sdt_action_term_div(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
+static bool action_Y_DIV(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get children: [0]='/', [1]=F, [2]=Y1 */
+  SyntaxTreeNode *F_node = node->children[1];
+  SyntaxTreeNode *Y1_node = node->children[2];
 
-  /* Get children */
-  SyntaxTreeNode *div_node = node->children[0];    /* / */
-  SyntaxTreeNode *factor_node = node->children[1]; /* F */
-  SyntaxTreeNode *y_node = node->children[2];      /* Y */
+  /* Generate code for factor */
+  sdt_codegen_generate(gen, F_node);
 
-  if (!div_node || !factor_node) {
-    return false;
-  }
-
-  /* Get parent node which should be R → F Y */
-  SyntaxTreeNode *parent = node->parent;
-  if (!parent || parent->children_count < 2) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Parent term node not found or invalid");
-    return false;
-  }
-
-  /* Get F node from parent which has the left operand */
-  SyntaxTreeNode *left_node = parent->children[0];
-  if (!left_node || !left_node->attributes || !left_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Left operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Get operand places */
-  if (!factor_node->attributes || !factor_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Right operand does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for result if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Create a new temporary for the result */
+  /* Create temporary for result */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp) {
     return false;
   }
 
-  /* Store result place */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = temp;
-
   /* Generate division instruction */
-  tac_program_add_inst(gen->program, TAC_OP_DIV,
-                       node->attributes->place,        /* result */
-                       left_node->attributes->place,   /* left operand */
-                       factor_node->attributes->place, /* right operand */
-                       0 /* line number not available */
-  );
+  tac_program_add_inst(gen->program, TAC_OP_DIV, temp, /* result */
+                       node->attributes->place,   /* inherited from parent */
+                       F_node->attributes->place, /* right operand */
+                       0);
 
-  DEBUG_PRINT("Generated division: %s := %s / %s", node->attributes->place,
-              left_node->attributes->place, factor_node->attributes->place);
-
-  /* Pass the result to parent term node */
-  if (parent->attributes) {
-    if (parent->attributes->place) {
-      free(parent->attributes->place);
-    }
-    parent->attributes->place = safe_strdup(node->attributes->place);
-  } else {
-    parent->attributes = sdt_attributes_create();
-    if (parent->attributes) {
-      parent->attributes->place = safe_strdup(node->attributes->place);
-    }
+  /* Pass temp to Y1 as inherited attribute */
+  if (!Y1_node->attributes) {
+    Y1_node->attributes = sdt_attributes_create();
   }
+  Y1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate code for term tail */
+  sdt_codegen_generate(gen, Y1_node);
+
+  /* Inherit synthesized place from Y1 */
+  node->attributes->place = safe_strdup(Y1_node->attributes->place);
+
+  /* Clean up */
+  free(temp);
+
+  DEBUG_PRINT("Generated division: %s := %s / %s", temp,
+              node->attributes->place, F_node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for parenthesized expression
+ * @brief Semantic action for Y → ε
  *
- * F → ( E ) { F.place = E.place; F.code = E.code }
+ * Y.synthesized = Y.inherited;
+ * Y.code = '';
  */
-bool sdt_action_factor_paren(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 3) {
-    return false;
-  }
-
-  /* Get expression node */
-  SyntaxTreeNode *expr_node = node->children[1]; /* E */
-
-  if (!expr_node) {
-    return false;
-  }
-
-  /* Get expression place */
-  if (!expr_node->attributes || !expr_node->attributes->place) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Expression does not have a valid place attribute");
-    return false;
-  }
-
-  /* Create attributes for factor if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Copy expression place to factor place */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = safe_strdup(expr_node->attributes->place);
-
-  DEBUG_PRINT("Factor inherited place from parenthesized expression: %s",
-              node->attributes->place);
+static bool action_Y_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Y.synthesized = Y.inherited (place already inherited) */
+  DEBUG_PRINT("Executed Y → ε action: place = %s", node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for identifier factor
+ * @brief Semantic action for F → ( E )
  *
- * F → id { F.place = id.name; F.code = '' }
+ * F.place = E.place;
+ * F.code = E.code;
  */
-bool sdt_action_factor_id(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 1) {
+static bool action_F_PAREN(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Get child: [0]='(', [1]=E, [2]=')' */
+  SyntaxTreeNode *E_node = node->children[1];
+
+  /* Generate code for expression */
+  sdt_codegen_generate(gen, E_node);
+
+  /* Inherit place from expression */
+  node->attributes->place = safe_strdup(E_node->attributes->place);
+
+  DEBUG_PRINT("Executed F → ( E ) action: place = %s", node->attributes->place);
+  return true;
+}
+
+// /**
+//  * @brief Semantic action for F → id
+//  *
+//  * F.place = id.name;
+//  * F.code = '';
+//  */
+// static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
+//   /* Get token from node */
+//   const char *id_name = node->token.str_val;
+//
+//   /* Set place to identifier name */
+//   node->attributes->place = safe_strdup(id_name);
+//
+//   DEBUG_PRINT("Factor place set to identifier: %s", node->attributes->place);
+//   return true;
+// }
+//
+static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  DEBUG_PRINT("Processing F_ID node, token address: %p", &node->token);
+  DEBUG_PRINT("Token type: %d, line: %d", node->token.type, 0);
+  DEBUG_PRINT("Token str_val address: %p", node->token.str_val);
+
+  const char *id_name = node->token.str_val;
+  if (!id_name) {
+    DEBUG_PRINT("CRITICAL: id_name is NULL");
+    sdt_set_error(gen, "Null identifier at line %d", 0);
     return false;
   }
 
-  /* Get identifier node */
-  SyntaxTreeNode *id_node = node->children[0]; /* id */
-
-  if (!id_node) {
+  if (id_name[0] == '\0') {
+    DEBUG_PRINT("CRITICAL: id_name is empty string");
+    sdt_set_error(gen, "Empty identifier at line %d", 0);
     return false;
   }
 
-  /* Get identifier lexeme */
-  const char *var_name = id_node->token.str_val;
-
-  /* Create attributes for factor if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Set factor place to identifier name */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = safe_strdup(var_name);
-
+  node->attributes->place = safe_strdup(id_name);
   DEBUG_PRINT("Factor place set to identifier: %s", node->attributes->place);
   return true;
 }
 
 /**
- * @brief Semantic action for octal integer factor
+ * @brief Semantic action for F → int8 | int10 | int16
  *
- * F → int8 { F.place = int8.value; F.code = '' }
+ * F.place = int.value;
+ * F.code = '';
  */
-bool sdt_action_factor_int8(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 1) {
+static bool action_F_INT(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  /* Convert integer value to string */
+  char value_str[64];
+  int value = node->token.num_val;
+  if (safe_itoa(value, value_str, 64, 10) == NULL) {
+    fprintf(stderr, "Error converting integer to string\n");
     return false;
   }
 
-  /* Get integer node */
-  SyntaxTreeNode *int_node = node->children[0]; /* int8 */
+  /* Set place to integer value */
+  node->attributes->place = safe_strdup(value_str);
 
-  if (!int_node) {
-    return false;
-  }
-
-  /* Get integer lexeme */
-  char int_value_str[64];
-  if (!safe_itoa(int_node->token.num_val, int_value_str, sizeof(int_value_str),
-                 10)) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Failed to convert integer value to string");
-    return false;
-  }
-  const char *int_value = int_value_str;
-
-  /* Create attributes for factor if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Set factor place to integer value */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = safe_strdup(int_value);
-
-  DEBUG_PRINT("Factor place set to octal integer: %s", node->attributes->place);
-  return true;
-}
-
-/**
- * @brief Semantic action for decimal integer factor
- *
- * F → int10 { F.place = int10.value; F.code = '' }
- */
-bool sdt_action_factor_int10(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 1) {
-    return false;
-  }
-
-  /* Get integer node */
-  SyntaxTreeNode *int_node = node->children[0]; /* int10 */
-
-  if (!int_node) {
-    return false;
-  }
-
-  /* Get integer lexeme */
-  char int_value_str[64];
-  if (!safe_itoa(int_node->token.num_val, int_value_str, sizeof(int_value_str),
-                 10)) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Failed to convert integer value to string");
-    return false;
-  }
-  const char *int_value = int_value_str;
-
-  /* Create attributes for factor if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Set factor place to integer value */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = safe_strdup(int_value);
-
-  DEBUG_PRINT("Factor place set to decimal integer: %s",
-              node->attributes->place);
-  return true;
-}
-
-/**
- * @brief Semantic action for hexadecimal integer factor
- *
- * F → int16 { F.place = int16.value; F.code = '' }
- */
-bool sdt_action_factor_int16(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!gen || !node || node->children_count < 1) {
-    return false;
-  }
-
-  /* Get integer node */
-  SyntaxTreeNode *int_node = node->children[0]; /* int16 */
-
-  if (!int_node) {
-    return false;
-  }
-
-  /* Get integer lexeme */
-  char int_value_str[64];
-  if (!safe_itoa(int_node->token.num_val, int_value_str, sizeof(int_value_str),
-                 10)) {
-    gen->has_error = true;
-    snprintf(gen->error_message, sizeof(gen->error_message),
-             "Failed to convert integer value to string");
-    return false;
-  }
-  const char *int_value = int_value_str;
-
-  /* Create attributes for factor if not exists */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
-  }
-
-  /* Set factor place to integer value */
-  if (node->attributes->place) {
-    free(node->attributes->place);
-  }
-  node->attributes->place = safe_strdup(int_value);
-
-  DEBUG_PRINT("Factor place set to hexadecimal integer: %s",
-              node->attributes->place);
+  DEBUG_PRINT("Factor place set to integer: %s", node->attributes->place);
   return true;
 }

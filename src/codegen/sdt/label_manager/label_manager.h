@@ -11,7 +11,7 @@
 /**
  * @brief Label manager structure
  */
-typedef struct {
+typedef struct LabelManager {
   int label_counter; /* Counter for generating unique label names */
 } LabelManager;
 
