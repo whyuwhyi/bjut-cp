@@ -342,43 +342,67 @@ bool lr_create_canonical_collection(LRAutomaton *automaton, Grammar *grammar,
     return false;
   }
 
+  /* Find augmented grammar start production */
+  int augmented_prod_idx = -1;
+  for (int i = 0; i < grammar->productions_count; i++) {
+    if (grammar->productions[i].lhs == grammar->start_symbol) {
+      augmented_prod_idx = i;
+      DEBUG_PRINT("Found augmented grammar start production at index %d",
+                  augmented_prod_idx);
+      break;
+    }
+  }
+
+  if (augmented_prod_idx < 0) {
+    DEBUG_PRINT("ERROR: Could not find augmented grammar start production");
+    lr_state_destroy(initial_state);
+    return false;
+  }
+
   /* Create item for augmented grammar start symbol */
   LRItem *start_item = NULL;
 
   if (use_lookaheads) {
-    /* Find EOF or end token index for lookahead */
+    /* Find EOF token index for lookahead */
     int end_token_idx = -1;
     for (int i = 0; i < grammar->terminals_count; i++) {
-      if (grammar->symbols[grammar->terminal_indices[i]].token == TK_END) {
+      if (grammar->symbols[grammar->terminal_indices[i]].token == TK_EOF) {
         end_token_idx = i;
+        DEBUG_PRINT("Found EOF token at index %d", end_token_idx);
         break;
       }
     }
 
     if (end_token_idx < 0) {
+      DEBUG_PRINT("WARNING: EOF token not found, using fallbacks");
       /* If no EOF token found, use semicolon or first terminal */
       for (int i = 0; i < grammar->terminals_count; i++) {
         if (grammar->symbols[grammar->terminal_indices[i]].token == TK_SEMI) {
           end_token_idx = i;
+          DEBUG_PRINT("Using semicolon as fallback at index %d", end_token_idx);
           break;
         }
       }
 
       if (end_token_idx < 0 && grammar->terminals_count > 0) {
         end_token_idx = 0; /* Use first terminal if nothing else found */
+        DEBUG_PRINT("Using first terminal as fallback at index %d",
+                    end_token_idx);
       }
     }
 
     if (end_token_idx >= 0) {
       int lookaheads[1] = {end_token_idx};
-      start_item = lr_item_create(0, 0, lookaheads, 1);
+      start_item = lr_item_create(augmented_prod_idx, 0, lookaheads, 1);
+      DEBUG_PRINT("Created start item with lookahead %d", end_token_idx);
     } else {
       /* Fall back to LR(0) if no terminals found */
-      start_item = lr_item_create_lr0(0, 0);
+      start_item = lr_item_create_lr0(augmented_prod_idx, 0);
       use_lookaheads = false;
+      DEBUG_PRINT("WARNING: Falling back to LR(0) due to missing terminals");
     }
   } else {
-    start_item = lr_item_create_lr0(0, 0);
+    start_item = lr_item_create_lr0(augmented_prod_idx, 0);
   }
 
   if (!start_item) {

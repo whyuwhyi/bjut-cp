@@ -37,7 +37,7 @@ LRAutomaton *lr_automaton_create(Grammar *grammar) {
   automaton->state_capacity = INITIAL_STATES_CAPACITY;
   automaton->grammar = grammar;
 
-  DEBUG_PRINT("Created LR automaton");
+  // DEBUG_PRINT("Created LR automaton");
   return automaton;
 }
 
@@ -59,7 +59,7 @@ void lr_automaton_destroy(LRAutomaton *automaton) {
   }
 
   free(automaton);
-  DEBUG_PRINT("Destroyed LR automaton");
+  // DEBUG_PRINT("Destroyed LR automaton");
 }
 
 /**
@@ -79,7 +79,7 @@ LRState *lr_state_create(int id) {
   state->core_items = NULL;
   state->core_item_count = 0;
 
-  DEBUG_PRINT("Created LR state %d", id);
+  // DEBUG_PRINT("Created LR state %d", id);
   return state;
 }
 
@@ -107,7 +107,7 @@ void lr_state_destroy(LRState *state) {
   }
 
   free(state);
-  DEBUG_PRINT("Destroyed LR state");
+  // DEBUG_PRINT("Destroyed LR state");
 }
 
 /**

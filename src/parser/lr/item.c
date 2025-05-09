@@ -38,7 +38,7 @@ LRItem *lr_item_create(int production_id, int dot_position, int *lookaheads,
     item->lookahead_count = lookahead_count;
   }
 
-  DEBUG_PRINT("Created LR item: [%d, %d]", production_id, dot_position);
+  // DEBUG_PRINT("Created LR item: [%d, %d]", production_id, dot_position);
   return item;
 }
 
@@ -62,7 +62,7 @@ void lr_item_destroy(LRItem *item) {
   }
 
   free(item);
-  DEBUG_PRINT("Destroyed LR item");
+  // DEBUG_PRINT("Destroyed LR item");
 }
 
 /**

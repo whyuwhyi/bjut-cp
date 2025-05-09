@@ -4,6 +4,7 @@
  */
 
 #include "lr_common.h"
+#include "lexer_analyzer/lexer.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -241,11 +242,17 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     return NULL;
   }
 
+  if (lexer->nr_token < CONFIG_MAX_TOKENS) {
+    lexer->tokens[lexer->nr_token++].type = TK_EOF;
+  }
+
   /* Reset parser data */
   if (!lr_parser_data_reset(data, lexer)) {
     fprintf(stderr, "Failed to reset LR parser data\n");
     return NULL;
   }
+
+  lexer_print_tokens(lexer);
 
   const Token *token = get_current_token(data);
   if (!token) {
@@ -257,13 +264,11 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
 
   /* Main parsing loop */
   bool accepted = false;
-
   while (!accepted && !data->has_error) {
     int current_state = data->state_stack[data->stack_top];
 
     /* Get action for current state and input symbol */
     int terminal_idx = get_terminal_index(parser->grammar, token->type);
-
     if (terminal_idx < 0) {
       data->has_error = true;
       snprintf(data->error_message, sizeof(data->error_message),
@@ -277,6 +282,27 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     /* Handle action */
     switch (action.type) {
     case ACTION_SHIFT: {
+      if (token->type == TK_EOF) {
+        /* EOF通常不应该被shift，但这取决于你的文法 */
+        DEBUG_PRINT("WARNING: Trying to shift on EOF in state %d",
+                    current_state);
+
+        /* 检查该状态的EOF动作 */
+        Action eof_action =
+            action_table_get_action(data->table, current_state, terminal_idx);
+        if (eof_action.type != ACTION_SHIFT) {
+          /* 如果这个状态对EOF的动作不是shift，说明有问题 */
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Unexpected shift on EOF. This should be an accept.");
+          break;
+        }
+
+        /* 这种情况可能发生在增广文法中，我们需要shift EOF然后在下一个状态接受
+         */
+        DEBUG_PRINT("Shifting EOF token as part of augmented grammar");
+      }
+
       /* Create node for the token */
       const char *symbol_name =
           parser->grammar
@@ -348,14 +374,39 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
         break;
       }
 
+      /* Convert non-terminal ID to non-terminal index for GOTO table lookup */
+      int nt_idx = -1;
+      for (int i = 0; i < parser->grammar->nonterminals_count; i++) {
+        if (parser->grammar->nonterminal_indices[i] == prod->lhs) {
+          nt_idx = i;
+          break;
+        }
+      }
+
+      if (nt_idx < 0) {
+        data->has_error = true;
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Unknown non-terminal ID: %d", prod->lhs);
+        break;
+      }
+
       /* Get new state from goto table */
-      int new_state = action_table_get_goto(
-          data->table, data->state_stack[data->stack_top], prod->lhs);
+      int current_state = data->state_stack[data->stack_top];
+      int new_state = action_table_get_goto(data->table, current_state, nt_idx);
 
       if (new_state < 0) {
         data->has_error = true;
         snprintf(data->error_message, sizeof(data->error_message),
-                 "Invalid goto state for non-terminal %d", prod->lhs);
+                 "Invalid goto state for non-terminal %d (%s) from state %d",
+                 prod->lhs, nt_name, current_state);
+
+        /* Debug output for error diagnosis */
+        DEBUG_PRINT("GOTO Error Details:");
+        DEBUG_PRINT("  Non-terminal: %s (ID: %d, Index: %d)", nt_name,
+                    prod->lhs, nt_idx);
+        DEBUG_PRINT("  Current state: %d", current_state);
+        DEBUG_PRINT("  Production: %s", prod->display_str);
+
         break;
       }
 
@@ -377,34 +428,65 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
 
     case ACTION_ACCEPT:
       /* Set the root of the syntax tree */
-      if (data->stack_top == 1) {
-        syntax_tree_set_root(data->syntax_tree, data->node_stack[1]);
-        accepted = true;
-        DEBUG_PRINT("Accepted input");
+      if (data->stack_top >= 1) {
+        /* 检查栈顶元素是否为原始开始符号 */
+        SyntaxTreeNode *root_node = data->node_stack[data->stack_top];
+        if (root_node) {
+          /* 设置语法树根节点 */
+          syntax_tree_set_root(data->syntax_tree, root_node);
+          accepted = true;
+          DEBUG_PRINT("Accepted input with root node type: %d",
+                      root_node->type);
+        } else {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Invalid stack state at accept action: NULL node at top");
+        }
       } else {
         data->has_error = true;
         snprintf(data->error_message, sizeof(data->error_message),
-                 "Invalid stack state at accept action");
+                 "Invalid stack state at accept action: stack too small");
       }
       break;
 
+    case ACTION_ERROR:
     default:
       /* Error */
       data->has_error = true;
-
       /* Try to provide a helpful error message */
       char token_str[128];
       token_to_string(token, token_str, sizeof(token_str));
 
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Syntax error at token '%s' (type %s) in state %d", token_str,
-               token_type_to_string(token->type), current_state);
+      /* 检查是否有可用的语法动作 */
+      bool has_actions = false;
+      for (int t = 0; t < parser->grammar->terminals_count; t++) {
+        Action a = action_table_get_action(data->table, current_state, t);
+        if (a.type != ACTION_ERROR) {
+          has_actions = true;
+          break;
+        }
+      }
+
+      if (has_actions) {
+        /* 有其他可用的动作，这是一个非期望的标记 */
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Syntax error at token '%s' (type %s) in state %d. Unexpected "
+                 "token.",
+                 token_str, token_type_to_string(token->type), current_state);
+      } else {
+        /* 没有可用的动作，这可能是一个无效的状态 */
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Syntax error at token '%s' (type %s) in state %d. Invalid "
+                 "parser state.",
+                 token_str, token_type_to_string(token->type), current_state);
+      }
       break;
     }
   }
 
   /* Check if parsing was successful */
   if (accepted) {
+    DEBUG_PRINT("Successfully parsed input");
     return data->syntax_tree;
   } else {
     if (data->has_error) {
@@ -412,12 +494,10 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     } else {
       fprintf(stderr, "Failed to parse input\n");
     }
-
     if (data->syntax_tree) {
       syntax_tree_destroy(data->syntax_tree);
       data->syntax_tree = NULL;
     }
-
     return NULL;
   }
 }

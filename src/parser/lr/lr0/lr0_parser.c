@@ -40,6 +40,9 @@ bool lr0_build_automaton(Parser *parser, LR0ParserData *data) {
 /**
  * @brief Build the LR(0) parsing table
  */
+/**
+ * @brief Build the LR(0) parsing table
+ */
 bool lr0_build_parsing_table(Parser *parser, LR0ParserData *data) {
   if (!parser || !data) {
     return false;
@@ -67,19 +70,30 @@ bool lr0_build_parsing_table(Parser *parser, LR0ParserData *data) {
 
       /* Check for reduction */
       if (lr_item_is_reduction(item, grammar)) {
-        /* Accept if this is [S' -> S.] */
-        if (item->production_id == 0 &&
-            item->dot_position >= grammar->productions[0].rhs_length) {
-          /* Find end token index */
-          int end_token_idx = get_terminal_index(grammar, TK_SEMI);
+        /* Check if this item represents the augmented start production */
+        int start_symbol = grammar->start_symbol;
+        bool is_start_production =
+            (grammar->productions[item->production_id].lhs == start_symbol);
 
-          if (end_token_idx >= 0) {
-            action_table_set_action(common->table, state_idx, end_token_idx,
+        /* Determine if it's a completed start production (dot at end) */
+        bool is_dot_at_end =
+            (item->dot_position >=
+             grammar->productions[item->production_id].rhs_length);
+
+        if (is_start_production && is_dot_at_end) {
+          /* This is an accept state - set accept action for EOF */
+          int eof_idx = get_terminal_index(grammar, TK_EOF);
+          if (eof_idx >= 0) {
+            DEBUG_PRINT("Setting ACCEPT action in state %d for EOF", state_idx);
+            action_table_set_action(common->table, state_idx, eof_idx,
                                     ACTION_ACCEPT, 0);
           }
         } else {
           /* Reduce by this production for all terminals */
           for (int term = 0; term < grammar->terminals_count; term++) {
+            DEBUG_PRINT("Setting REDUCE action in state %d for terminal %d by "
+                        "production %d",
+                        state_idx, term, item->production_id);
             action_table_set_action(common->table, state_idx, term,
                                     ACTION_REDUCE, item->production_id);
           }
@@ -118,12 +132,18 @@ bool lr0_build_parsing_table(Parser *parser, LR0ParserData *data) {
 
       if (is_terminal && term_idx >= 0) {
         /* Add shift action */
+        DEBUG_PRINT(
+            "Setting SHIFT action in state %d for terminal %d to state %d",
+            state_idx, term_idx, target->id);
         action_table_set_action(common->table, state_idx, term_idx,
                                 ACTION_SHIFT, target->id);
       }
 
       if (is_nonterminal && nt_idx >= 0) {
         /* Add goto action */
+        DEBUG_PRINT(
+            "Setting GOTO action in state %d for non-terminal %d to state %d",
+            state_idx, nt_idx, target->id);
         action_table_set_goto(common->table, state_idx, nt_idx, target->id);
       }
     }

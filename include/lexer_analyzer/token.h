@@ -51,7 +51,9 @@ typedef enum {
   TK_OCT,   /**< Octal integer */
   TK_HEX,   /**< Hexadecimal integer */
   TK_ILOCT, /**< Invalid octal integer */
-  TK_ILHEX  /**< Invalid hexadecimal integer */
+  TK_ILHEX, /**< Invalid hexadecimal integer */
+
+  TK_EOF /** End of file token */
 } TokenType;
 
 /**

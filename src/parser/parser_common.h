@@ -45,6 +45,14 @@ void production_tracker_destroy(ProductionTracker *tracker);
 bool production_tracker_add(ProductionTracker *tracker, int production_id);
 
 /**
+ * @brief Remove the last production from the tracker
+ *
+ * @param tracker Tracker to remove from
+ * @return bool Success status
+ */
+bool production_tracker_remove_last(ProductionTracker *tracker);
+
+/**
  * @brief Print the production sequence (leftmost derivation)
  *
  * @param tracker Tracker containing the sequence

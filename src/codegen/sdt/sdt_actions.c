@@ -2,7 +2,6 @@
  * @file codegen/sdt/sdt_actions.c
  * @brief Implementation of semantic actions for syntax-directed translation
  */
-
 #include "sdt_actions.h"
 #include "codegen/sdt_codegen.h"
 #include "codegen/tac.h"
@@ -40,6 +39,13 @@ static bool action_F_PAREN(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_F_ID(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_F_INT(SDTCodeGen *, SyntaxTreeNode *);
 
+/* Helper functions for common operations */
+static bool ensure_attributes(SyntaxTreeNode *node);
+static char *get_or_create_next_label(SDTCodeGen *gen, SyntaxTreeNode *node);
+static bool is_control_structure(SyntaxTreeNode *node);
+static SyntaxTreeNode *find_child_by_name(SyntaxTreeNode *node,
+                                          const char *name, int node_type);
+
 /**
  * @brief Execute the semantic actions for a node based on its production ID
  */
@@ -48,11 +54,8 @@ bool sdt_execute_action(SDTCodeGen *gen, SyntaxTreeNode *node) {
     return false;
 
   /* Ensure node has attributes */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes) {
-      return false;
-    }
+  if (!ensure_attributes(node)) {
+    return false;
   }
 
   /* Dispatch to appropriate action based on production ID */
@@ -121,6 +124,60 @@ bool sdt_execute_action(SDTCodeGen *gen, SyntaxTreeNode *node) {
 }
 
 /**
+ * @brief Ensures a node has attributes, creates them if needed
+ * @return true if successful, false on allocation failure
+ */
+static bool ensure_attributes(SyntaxTreeNode *node) {
+  if (!node->attributes) {
+    node->attributes = sdt_attributes_create();
+    if (!node->attributes) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * @brief Get existing or create new next_label
+ * @return The next_label string (caller must free if not storing in attributes)
+ */
+static char *get_or_create_next_label(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  if (node->attributes && node->attributes->next_label) {
+    return safe_strdup(node->attributes->next_label);
+  } else {
+    return label_manager_new_label(gen->label_manager);
+  }
+}
+
+/**
+ * @brief Check if a node represents a control structure (if, while, block)
+ * @return true if node is a control structure, false otherwise
+ */
+static bool is_control_structure(SyntaxTreeNode *node) {
+  return (node->production_id == PROD_S_WHILE_C_DO_S ||
+          node->production_id == PROD_S_IF_C_THEN_S_N ||
+          node->production_id == PROD_S_BEGIN_L_END);
+}
+
+/**
+ * @brief Find a child node by its symbol name and type
+ * @return The matching child node, or NULL if not found
+ */
+static SyntaxTreeNode *find_child_by_name(SyntaxTreeNode *node,
+                                          const char *name, int node_type) {
+  if (!node || !name)
+    return NULL;
+
+  for (int i = 0; i < node->children_count; i++) {
+    if (node->children[i]->type == node_type &&
+        strcmp(node->children[i]->symbol_name, name) == 0) {
+      return node->children[i];
+    }
+  }
+  return NULL;
+}
+
+/**
  * @brief Semantic action for P → L T
  *
  * P.code = L.code || T.code
@@ -129,7 +186,6 @@ static bool action_P_LT(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Process children: [0]=L, [1]=T */
   sdt_codegen_generate(gen, node->children[0]);
   sdt_codegen_generate(gen, node->children[1]);
-
   DEBUG_PRINT("Executed P → L T action");
   return true;
 }
@@ -143,7 +199,6 @@ static bool action_T_PT(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Process children: [0]=P, [1]=T */
   sdt_codegen_generate(gen, node->children[0]);
   sdt_codegen_generate(gen, node->children[1]);
-
   DEBUG_PRINT("Executed T → P T action");
   return true;
 }
@@ -167,7 +222,6 @@ static bool action_T_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
 static bool action_L_S_SEMI(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Process statement: [0]=S */
   sdt_codegen_generate(gen, node->children[0]);
-
   DEBUG_PRINT("Executed L → S ; action");
   return true;
 }
@@ -178,20 +232,9 @@ static bool action_L_S_SEMI(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * S.code = E.code || gen(id.place ':=' E.place)
  */
 static bool action_S_ASSIGN(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  /* Get children: [0]=id, [1]='=', [2]=E */
-  SyntaxTreeNode *id_node = NULL;
-  SyntaxTreeNode *E_node = NULL;
-
-  /* Find identifier terminal node */
-  for (int i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == NODE_TERMINAL &&
-        strcmp(node->children[i]->symbol_name, "id") == 0) {
-      id_node = node->children[i];
-    } else if (node->children[i]->type == NODE_NONTERMINAL &&
-               strcmp(node->children[i]->symbol_name, "E") == 0) {
-      E_node = node->children[i];
-    }
-  }
+  /* Find id and E nodes */
+  SyntaxTreeNode *id_node = find_child_by_name(node, "id", NODE_TERMINAL);
+  SyntaxTreeNode *E_node = find_child_by_name(node, "E", NODE_NONTERMINAL);
 
   if (!id_node || !E_node) {
     DEBUG_PRINT("ERROR: Missing identifier or expression node");
@@ -216,220 +259,189 @@ static bool action_S_ASSIGN(SDTCodeGen *gen, SyntaxTreeNode *node) {
 /**
  * @brief Semantic action for S → if C then S1 N
  *
- * If N is epsilon:
- *   C.true = newlabel;
- *   C.false = S.next;
- *   S1.next = S.next;
- *   S.code = C.code || gen(C.true ':') || S1.code;
- * Else:
- *   C.true = newlabel;
- *   C.false = newlabel;
- *   S1.next = S.next;
- *   N.stmt.next = S.next;
- *   S.code = C.code || gen(C.true ':') || S1.code ||
- *            gen('goto' S.next) || gen(C.false ':') || N.code;
+ * Handles if-then-else statements with optimized control flow for nested
+ * structures
  */
+static bool action_S_IF(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  if (!node || node->children_count < 5) {
+    DEBUG_PRINT("ERROR: Invalid if-statement structure");
+    return false;
+  }
+
+  SyntaxTreeNode *C_node = node->children[1];  /* Condition node */
+  SyntaxTreeNode *S1_node = node->children[3]; /* Then-branch node */
+  SyntaxTreeNode *N_node = node->children[4];  /* Else-branch node (may be ε) */
+
+  /* 1. Ensure condition node has attributes */
+  if (!ensure_attributes(C_node)) {
+    return false;
+  }
+
+  /* 2. Generate labels */
+  char *true_label = label_manager_new_label(gen->label_manager);
+  char *next_label = get_or_create_next_label(gen, node);
+  bool has_else = (N_node->production_id == PROD_N_ELSE_S);
+  char *false_label =
+      has_else ? label_manager_new_label(gen->label_manager) : next_label;
+
+  /* 3. Set condition node labels */
+  C_node->attributes->true_label = true_label;
+  C_node->attributes->false_label = false_label;
+
+  /* 4. Store labels in if-node attributes for inheritance */
+  if (!ensure_attributes(node)) {
+    return false;
+  }
+  node->attributes->next_label = safe_strdup(next_label);
+  node->attributes->true_label = safe_strdup(true_label);
+
+  /* 5. Pass labels to then-branch node */
+  if (!ensure_attributes(S1_node)) {
+    return false;
+  }
+  S1_node->attributes->true_label = safe_strdup(true_label);
+  S1_node->attributes->next_label = safe_strdup(next_label);
+
+  /* 6. Generate condition code */
+  sdt_codegen_generate(gen, C_node);
+
+  /* 7. Check if then-branch is a control structure */
+  bool is_ctrl = is_control_structure(S1_node);
+
+  /* 8. Output true_label only if then-branch is not a control structure */
+  if (!is_ctrl) {
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
+  }
+
+  /* 9. Generate then-branch code */
+  sdt_codegen_generate(gen, S1_node);
+
+  /* 10. Handle else-branch */
+  if (has_else) {
+    /* Add goto to skip else-branch if then-branch is not a control structure */
+    if (!is_ctrl) {
+      tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL,
+                           0);
+    }
+
+    /* Output else-branch label */
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
+                         0);
+
+    /* Generate else-branch code if present */
+    if (N_node->children_count > 1) {
+      SyntaxTreeNode *else_stmt = N_node->children[1];
+      if (!ensure_attributes(else_stmt)) {
+        return false;
+      }
+      else_stmt->attributes->next_label = safe_strdup(next_label);
+      sdt_codegen_generate(gen, else_stmt);
+    }
+  }
+
+  DEBUG_PRINT("Generated if: true=%s false=%s next=%s", true_label, false_label,
+              next_label);
+
+  return true;
+}
 
 /**
- * @brief Semantic action for S → if C then S1 N
+ * @brief Semantic action for S → while C do S1
  *
- * 嵌套时复用 next_label；无 else 分支时不额外打 false_label。
+ * Handles while loops with optimized control flow for nested structures
  */
-// static bool action_S_IF(SDTCodeGen *gen, SyntaxTreeNode *node) {
-//   if (!node || node->children_count < 5) {
-//     DEBUG_PRINT("ERROR: Invalid if-statement structure");
-//     return false;
-//   }
-//
-//   SyntaxTreeNode *C_node = node->children[1];  // 条件节点
-//   SyntaxTreeNode *S1_node = node->children[3]; // then分支语句节点
-//   SyntaxTreeNode *N_node = node->children[4];  // else分支节点(可能为ε)
-//
-//   /* 确保条件节点有属性容器 */
-//   if (!C_node->attributes) {
-//     C_node->attributes = sdt_attributes_create();
-//     if (!C_node->attributes)
-//       return false;
-//   }
-//
-//   /* 1. 处理标签 */
-//   // true_label: 每个if语句为条件为真时创建一个唯一标签
-//   char *true_label = label_manager_new_label(gen->label_manager);
-//   C_node->attributes->true_label = true_label;
-//
-//   // next_label: 尝试从父节点继承，否则创建新的
-//   char *next_label;
-//   if (node->attributes && node->attributes->next_label) {
-//     next_label = safe_strdup(node->attributes->next_label);
-//   } else {
-//     next_label = label_manager_new_label(gen->label_manager);
-//   }
-//
-//   // 保存next_label到节点属性，供嵌套结构使用
-//   if (!node->attributes)
-//     node->attributes = sdt_attributes_create();
-//   node->attributes->next_label = next_label;
-//
-//   // 根据是否有else分支决定false_label
-//   bool has_else = (N_node->production_id == PROD_N_ELSE_S);
-//   char *false_label =
-//       has_else ? label_manager_new_label(gen->label_manager) : next_label;
-//   C_node->attributes->false_label = false_label;
-//
-//   /* 2. 生成条件判断代码 */
-//   sdt_codegen_generate(gen, C_node);
-//
-//   /* 3. 分析then分支节点 - 检查是否为控制结构 */
-//   bool is_control_structure = false;
-//   if (S1_node->production_id == PROD_S_WHILE_C_DO_S ||
-//       S1_node->production_id == PROD_S_IF_C_THEN_S_N ||
-//       S1_node->production_id == PROD_S_BEGIN_L_END) {
-//     is_control_structure = true;
-//   }
-//
-//   /* 4. 仅当then分支不是直接就是另一个控制结构时，才输出true标签 */
-//   if (!is_control_structure) {
-//     tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL,
-//     0);
-//   }
-//
-//   /* 5. 生成then分支代码，传递next_label */
-//   if (!S1_node->attributes)
-//     S1_node->attributes = sdt_attributes_create();
-//   S1_node->attributes->next_label = safe_strdup(next_label);
-//   sdt_codegen_generate(gen, S1_node);
-//
-//   /* 6. 处理else分支 */
-//   if (has_else) {
-//     // 只有当then分支不是控制结构，或者有实际代码时，才需要跳过else部分
-//     if (!is_control_structure) {
-//       tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL,
-//                            0);
-//     }
-//
-//     // 输出else分支标签
-//     tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
-//                          0);
-//
-//     // 生成else分支代码
-//     if (N_node->children_count > 1) {
-//       SyntaxTreeNode *else_stmt = N_node->children[1];
-//       if (!else_stmt->attributes)
-//         else_stmt->attributes = sdt_attributes_create();
-//       else_stmt->attributes->next_label = safe_strdup(next_label);
-//       sdt_codegen_generate(gen, else_stmt);
-//     }
-//   }
-//
-//   /* 7. 输出日志信息 */
-//   DEBUG_PRINT("Generated if-statement: true=%s, false=%s, next=%s",
-//   true_label,
-//               false_label, next_label);
-//
-//   return true;
-// }
-//
-// /**
-//  * @brief Semantic action for S → while C do S1
-//  *
-//  * S.begin = newlabel;
-//  * C.true = newlabel;
-//  * C.false = S.next;
-//  * S1.next = S.begin;
-//  * S.code = gen(S.begin ':') || C.code || gen(C.true ':') || S1.code ||
-//  * gen('goto' S.begin)
-//  */
-//
-// static bool action_S_WHILE(SDTCodeGen *gen, SyntaxTreeNode *node) {
-//   if (!node || node->children_count < 4) {
-//     DEBUG_PRINT("ERROR: Invalid while-statement structure");
-//     return false;
-//   }
-//
-//   SyntaxTreeNode *C_node = node->children[1];
-//   SyntaxTreeNode *S1_node = node->children[3];
-//
-//   /* 确保 C_node 的属性结构存在 */
-//   if (!C_node->attributes) {
-//     C_node->attributes = sdt_attributes_create();
-//     if (!C_node->attributes)
-//       return false;
-//   }
-//
-//   /* 记住进入时是否已经有父层 next_label */
-//   bool inherited = (node->attributes && node->attributes->next_label);
-//
-//   /* 1. 拿到或新建 next_label，并存回 node->attributes */
-//   char *next_label;
-//   if (inherited) {
-//     next_label = safe_strdup(node->attributes->next_label);
-//   } else {
-//     next_label = label_manager_new_label(gen->label_manager);
-//     if (!node->attributes)
-//       node->attributes = sdt_attributes_create();
-//     node->attributes->next_label = safe_strdup(next_label);
-//   }
-//
-//   /* 2. 循环入口标签：如果 C_node 已经有 true_label（来自父
-//    * if），就复用它；否则新建 */
-//   char *begin_label;
-//   if (C_node->attributes && C_node->attributes->true_label) {
-//     begin_label = safe_strdup(C_node->attributes->true_label);
-//   } else {
-//     begin_label = label_manager_new_label(gen->label_manager);
-//   }
-//
-//   /* 3. 本层循环自己的“条件为真”跳转标签和“条件为假”标签 */
-//   char *true_label = label_manager_new_label(gen->label_manager);
-//   C_node->attributes->true_label = true_label;
-//   C_node->attributes->false_label = next_label;
-//
-//   /* 3. 输出循环开始标签 */
-//   tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL,
-//   0);
-//
-//   /* 4. 生成条件判断代码 */
-//   sdt_codegen_generate(gen, C_node);
-//
-//   /* 5. 条件为真——进入循环体 */
-//   tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL,
-//   0);
-//
-//   /* 6. 传递回头跳转标签给循环体内部的语句 */
-//   if (!S1_node->attributes)
-//     S1_node->attributes = sdt_attributes_create();
-//   S1_node->attributes->next_label = safe_strdup(begin_label);
-//   sdt_codegen_generate(gen, S1_node);
-//
-//   /* 7. 本层循环最后跳回 begin */
-//   tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL,
-//   0);
-//
-//   /* 8. 只有最外层才输出退出标签 */
-//   if (!inherited) {
-//     tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL,
-//     0);
-//   }
-//
-//   DEBUG_PRINT("Generated while-statement: begin=%s, true=%s, false/next=%s",
-//               begin_label, true_label, next_label);
-//
-//   return true;
-// }
-//
+static bool action_S_WHILE(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  if (!node || node->children_count < 4) {
+    DEBUG_PRINT("ERROR: Invalid while-statement structure");
+    return false;
+  }
+
+  SyntaxTreeNode *C_node = node->children[1];  /* Condition node */
+  SyntaxTreeNode *S1_node = node->children[3]; /* Loop body node */
+
+  /* 1. Ensure condition node has attributes */
+  if (!ensure_attributes(C_node)) {
+    return false;
+  }
+
+  /* 2. Set up next_label (loop exit label) */
+  bool inherited = (node->attributes && node->attributes->next_label);
+  char *next_label = get_or_create_next_label(gen, node);
+
+  if (!inherited && !ensure_attributes(node)) {
+    return false;
+  }
+
+  if (!inherited) {
+    node->attributes->next_label = safe_strdup(next_label);
+  }
+
+  /* 3. Set up begin_label (loop entry label) - reuse true_label from parent if
+   * if available */
+  char *begin_label;
+  if (node->attributes && node->attributes->true_label) {
+    begin_label = safe_strdup(node->attributes->true_label);
+  } else {
+    begin_label = label_manager_new_label(gen->label_manager);
+  }
+
+  /* 4. Set up true_label (condition true branch) */
+  char *true_label = label_manager_new_label(gen->label_manager);
+  C_node->attributes->true_label = true_label;
+  C_node->attributes->false_label = next_label;
+
+  /* 5. Output loop entry label */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL, 0);
+
+  /* 6. Generate condition code */
+  sdt_codegen_generate(gen, C_node);
+
+  /* 7. Output condition true branch label */
+  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
+
+  /* 8. Set up loop body with back-jump label */
+  if (!ensure_attributes(S1_node)) {
+    return false;
+  }
+  S1_node->attributes->next_label = safe_strdup(begin_label);
+
+  /* 9. Generate loop body code */
+  sdt_codegen_generate(gen, S1_node);
+
+  /* 10. Output back-jump to loop entry */
+  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL, 0);
+
+  /* 11. Output loop exit label if not inherited */
+  if (!inherited) {
+    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
+  }
+
+  DEBUG_PRINT("Generated while: begin=%s true=%s false/next=%s", begin_label,
+              true_label, next_label);
+
+  /* 12. Clean up */
+  free(begin_label);
+  if (!inherited) {
+    free(next_label);
+  }
+
+  return true;
+}
+
 /**
  * @brief Semantic action for S → begin L end
  *
  * S.code = L.code
  */
 static bool action_S_BEGIN(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  /* Get child: [0]='begin', [1]=L, [2]='end' */
+  /* Get list of statements: [1]=L */
   SyntaxTreeNode *L_node = node->children[1];
 
-  /* Pass next_label down to L */
-  if (!L_node->attributes) {
-    L_node->attributes = sdt_attributes_create();
+  /* Pass next_label down to statement list */
+  if (!ensure_attributes(L_node)) {
+    return false;
   }
+
   if (node->attributes && node->attributes->next_label) {
     L_node->attributes->next_label = safe_strdup(node->attributes->next_label);
   }
@@ -483,34 +495,35 @@ static bool action_C_RELOP(SDTCodeGen *gen, SyntaxTreeNode *node,
   SyntaxTreeNode *E1_node = node->children[0];
   SyntaxTreeNode *E2_node = node->children[2];
 
-  /* 1. 先生成左右表达式的代码 */
+  /* 1. Generate code for both expressions */
   sdt_codegen_generate(gen, E1_node);
   sdt_codegen_generate(gen, E2_node);
 
-  /* 2. 确保有属性结构 */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes)
-      return false;
+  /* 2. Ensure attributes exist */
+  if (!ensure_attributes(node)) {
+    return false;
   }
 
-  /* 3. 复用或新建 true/false 标签 */
+  /* 3. Use existing or create new true/false labels */
   if (!node->attributes->true_label) {
     node->attributes->true_label = label_manager_new_label(gen->label_manager);
   }
+
   if (!node->attributes->false_label) {
     node->attributes->false_label = label_manager_new_label(gen->label_manager);
   }
+
   char *t = node->attributes->true_label;
   char *f = node->attributes->false_label;
 
-  /* 4. 生成条件跳转和落空跳转 */
+  /* 4. Generate conditional jump and default jump */
   tac_program_add_inst(gen->program, op, t, E1_node->attributes->place,
                        E2_node->attributes->place, 0);
   tac_program_add_inst(gen->program, TAC_OP_GOTO, f, NULL, NULL, 0);
 
   DEBUG_PRINT("Generated condition with relational operator: %s",
               tac_op_type_to_string(op));
+
   return true;
 }
 
@@ -527,49 +540,41 @@ static bool action_C_PAREN(SDTCodeGen *gen, SyntaxTreeNode *node) {
     return false;
   }
 
-  /* 找到中间的 C1 节点 */
-  SyntaxTreeNode *C1_node = NULL;
-  for (int i = 0; i < node->children_count; i++) {
-    SyntaxTreeNode *child = node->children[i];
-    if (child->type == NODE_NONTERMINAL &&
-        strcmp(child->symbol_name, "C") == 0) {
-      C1_node = child;
-      break;
-    }
-  }
+  /* Find inner condition node */
+  SyntaxTreeNode *C1_node = find_child_by_name(node, "C", NODE_NONTERMINAL);
+
   if (!C1_node) {
     DEBUG_PRINT("ERROR: Missing inner condition in parentheses");
     return false;
   }
 
-  /* 确保 C1 有属性结构 */
-  if (!C1_node->attributes) {
-    C1_node->attributes = sdt_attributes_create();
-    if (!C1_node->attributes)
-      return false;
+  /* Ensure inner condition has attributes */
+  if (!ensure_attributes(C1_node)) {
+    return false;
   }
 
-  /* 如果自己已经被赋过标签，就传给 C1 */
+  /* Pass down true/false labels if present */
   if (node->attributes && node->attributes->true_label) {
     C1_node->attributes->true_label = safe_strdup(node->attributes->true_label);
   }
+
   if (node->attributes && node->attributes->false_label) {
     C1_node->attributes->false_label =
         safe_strdup(node->attributes->false_label);
   }
 
-  /* 生成内部条件的代码 */
+  /* Generate inner condition code */
   sdt_codegen_generate(gen, C1_node);
 
-  /* 如果自己还没有标签，就从 C1 继承回来 */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
-    if (!node->attributes)
-      return false;
+  /* Inherit labels back if needed */
+  if (!ensure_attributes(node)) {
+    return false;
   }
+
   if (!node->attributes->true_label && C1_node->attributes->true_label) {
     node->attributes->true_label = safe_strdup(C1_node->attributes->true_label);
   }
+
   if (!node->attributes->false_label && C1_node->attributes->false_label) {
     node->attributes->false_label =
         safe_strdup(C1_node->attributes->false_label);
@@ -595,9 +600,10 @@ static bool action_E_R_X(SDTCodeGen *gen, SyntaxTreeNode *node) {
   sdt_codegen_generate(gen, R_node);
 
   /* Pass R.place to X as inherited attribute */
-  if (!X_node->attributes) {
-    X_node->attributes = sdt_attributes_create();
+  if (!ensure_attributes(X_node)) {
+    return false;
   }
+
   X_node->attributes->place = safe_strdup(R_node->attributes->place);
 
   /* Generate code for expression tail */
@@ -617,53 +623,52 @@ static bool action_E_R_X(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * X.code = R.code || gen(X.synthesized ':=' X.inherited '+' R.place) ||
  * X1.code; X1.inherited = X.synthesized;
  */
-
 static bool action_X_PLUS(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  // [0]='+', [1]=R, [2]=X1
+  /* Get children: [0]='+', [1]=R, [2]=X1 */
   SyntaxTreeNode *R_node = node->children[1];
   SyntaxTreeNode *X1_node = node->children[2];
 
-  // 1. 先生成 R 的代码
+  /* 1. Generate code for right operand */
   sdt_codegen_generate(gen, R_node);
 
-  // 2. 分配临时变量
+  /* 2. Allocate temporary variable */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp)
     return false;
 
-  // 3. 检查操作数
+  /* 3. Check operands */
   if (!node->attributes->place || !R_node->attributes->place) {
     DEBUG_PRINT("ERROR: Missing operands for addition");
     free(temp);
     return false;
   }
 
-  // 4. 生成加法指令
-  tac_program_add_inst(gen->program, TAC_OP_ADD,
-                       temp,                      // 结果
-                       node->attributes->place,   // 左操作数（inherited）
-                       R_node->attributes->place, // 右操作数
+  /* 4. Generate addition instruction */
+  tac_program_add_inst(gen->program, TAC_OP_ADD, temp, /* result */
+                       node->attributes->place,   /* left operand (inherited) */
+                       R_node->attributes->place, /* right operand */
                        0);
 
-  // 5. 传递 inherited attribute 给 X1
-  if (!X1_node->attributes)
-    X1_node->attributes = sdt_attributes_create();
+  /* 5. Pass inherited attribute to X1 */
+  if (!ensure_attributes(X1_node)) {
+    free(temp);
+    return false;
+  }
+
   X1_node->attributes->place = safe_strdup(temp);
 
-  // 6. 生成 X1 的代码
+  /* 6. Generate X1 code */
   sdt_codegen_generate(gen, X1_node);
 
-  // 7. 继承 synthesized place
+  /* 7. Inherit synthesized place */
   if (X1_node->attributes->place)
     node->attributes->place = safe_strdup(X1_node->attributes->place);
 
-  // 8. 日志打印
   DEBUG_PRINT("Generated addition: %s := %s + %s", temp,
               node->attributes->place, R_node->attributes->place);
 
-  // 9. 释放临时字符串
+  /* 8. Clean up temporary string */
   free(temp);
-
   return true;
 }
 
@@ -675,37 +680,48 @@ static bool action_X_PLUS(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * X1.code; X1.inherited = X.synthesized;
  */
 static bool action_X_MINUS(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  // [0]='-', [1]=R, [2]=X1
+  /* Get children: [0]='-', [1]=R, [2]=X1 */
   SyntaxTreeNode *R_node = node->children[1];
   SyntaxTreeNode *X1_node = node->children[2];
 
+  /* Generate code for right operand */
   sdt_codegen_generate(gen, R_node);
 
+  /* Allocate temporary variable */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp)
     return false;
 
+  /* Check operands */
   if (!node->attributes->place || !R_node->attributes->place) {
     DEBUG_PRINT("ERROR: Missing operands for subtraction");
     free(temp);
     return false;
   }
 
+  /* Generate subtraction instruction */
   tac_program_add_inst(gen->program, TAC_OP_SUB, temp, node->attributes->place,
                        R_node->attributes->place, 0);
 
-  if (!X1_node->attributes)
-    X1_node->attributes = sdt_attributes_create();
+  /* Pass inherited attribute to X1 */
+  if (!ensure_attributes(X1_node)) {
+    free(temp);
+    return false;
+  }
+
   X1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate X1 code */
   sdt_codegen_generate(gen, X1_node);
 
+  /* Inherit synthesized place */
   if (X1_node->attributes->place)
     node->attributes->place = safe_strdup(X1_node->attributes->place);
 
   DEBUG_PRINT("Generated subtraction: %s := %s - %s", temp,
               node->attributes->place, R_node->attributes->place);
 
+  /* Clean up */
   free(temp);
   return true;
 }
@@ -738,9 +754,10 @@ static bool action_R_F_Y(SDTCodeGen *gen, SyntaxTreeNode *node) {
   sdt_codegen_generate(gen, F_node);
 
   /* Pass F.place to Y as inherited attribute */
-  if (!Y_node->attributes) {
-    Y_node->attributes = sdt_attributes_create();
+  if (!ensure_attributes(Y_node)) {
+    return false;
   }
+
   Y_node->attributes->place = safe_strdup(F_node->attributes->place);
 
   /* Generate code for term tail */
@@ -761,37 +778,48 @@ static bool action_R_F_Y(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * Y1.code; Y1.inherited = Y.synthesized;
  */
 static bool action_Y_MUL(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  // [0]='*', [1]=F, [2]=Y1
+  /* Get children: [0]='*', [1]=F, [2]=Y1 */
   SyntaxTreeNode *F_node = node->children[1];
   SyntaxTreeNode *Y1_node = node->children[2];
 
+  /* Generate code for factor */
   sdt_codegen_generate(gen, F_node);
 
+  /* Allocate temporary variable */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp)
     return false;
 
+  /* Check operands */
   if (!node->attributes->place || !F_node->attributes->place) {
     DEBUG_PRINT("ERROR: Missing operands for multiplication");
     free(temp);
     return false;
   }
 
+  /* Generate multiplication instruction */
   tac_program_add_inst(gen->program, TAC_OP_MUL, temp, node->attributes->place,
                        F_node->attributes->place, 0);
 
-  if (!Y1_node->attributes)
-    Y1_node->attributes = sdt_attributes_create();
+  /* Pass inherited attribute to Y1 */
+  if (!ensure_attributes(Y1_node)) {
+    free(temp);
+    return false;
+  }
+
   Y1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate Y1 code */
   sdt_codegen_generate(gen, Y1_node);
 
+  /* Inherit synthesized place */
   if (Y1_node->attributes->place)
     node->attributes->place = safe_strdup(Y1_node->attributes->place);
 
   DEBUG_PRINT("Generated multiplication: %s := %s * %s", temp,
               node->attributes->place, F_node->attributes->place);
 
+  /* Clean up */
   free(temp);
   return true;
 }
@@ -804,37 +832,48 @@ static bool action_Y_MUL(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * Y1.code; Y1.inherited = Y.synthesized;
  */
 static bool action_Y_DIV(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  // [0]='/', [1]=F, [2]=Y1
+  /* Get children: [0]='/', [1]=F, [2]=Y1 */
   SyntaxTreeNode *F_node = node->children[1];
   SyntaxTreeNode *Y1_node = node->children[2];
 
+  /* Generate code for factor */
   sdt_codegen_generate(gen, F_node);
 
+  /* Allocate temporary variable */
   char *temp = symbol_table_new_temp(gen->symbol_table);
   if (!temp)
     return false;
 
+  /* Check operands */
   if (!node->attributes->place || !F_node->attributes->place) {
     DEBUG_PRINT("ERROR: Missing operands for division");
     free(temp);
     return false;
   }
 
+  /* Generate division instruction */
   tac_program_add_inst(gen->program, TAC_OP_DIV, temp, node->attributes->place,
                        F_node->attributes->place, 0);
 
-  if (!Y1_node->attributes)
-    Y1_node->attributes = sdt_attributes_create();
+  /* Pass inherited attribute to Y1 */
+  if (!ensure_attributes(Y1_node)) {
+    free(temp);
+    return false;
+  }
+
   Y1_node->attributes->place = safe_strdup(temp);
 
+  /* Generate Y1 code */
   sdt_codegen_generate(gen, Y1_node);
 
+  /* Inherit synthesized place */
   if (Y1_node->attributes->place)
     node->attributes->place = safe_strdup(Y1_node->attributes->place);
 
   DEBUG_PRINT("Generated division: %s := %s / %s", temp,
               node->attributes->place, F_node->attributes->place);
 
+  /* Clean up */
   free(temp);
   return true;
 }
@@ -859,14 +898,7 @@ static bool action_Y_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
  */
 static bool action_F_PAREN(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Find expression node (should be between parentheses) */
-  SyntaxTreeNode *E_node = NULL;
-  for (int i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == NODE_NONTERMINAL &&
-        strcmp(node->children[i]->symbol_name, "E") == 0) {
-      E_node = node->children[i];
-      break;
-    }
-  }
+  SyntaxTreeNode *E_node = find_child_by_name(node, "E", NODE_NONTERMINAL);
 
   if (!E_node) {
     DEBUG_PRINT("ERROR: Expression node not found in parenthesized expression");
@@ -877,8 +909,8 @@ static bool action_F_PAREN(SDTCodeGen *gen, SyntaxTreeNode *node) {
   sdt_codegen_generate(gen, E_node);
 
   /* Inherit place from expression */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
+  if (!ensure_attributes(node)) {
+    return false;
   }
 
   if (E_node->attributes && E_node->attributes->place) {
@@ -908,27 +940,20 @@ static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
     return false;
   }
 
-  /* Find the identifier terminal node (should be the first child) */
-  SyntaxTreeNode *id_node = NULL;
-  for (int i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == NODE_TERMINAL &&
-        strcmp(node->children[i]->symbol_name, "id") == 0) {
-      id_node = node->children[i];
-      break;
-    }
-  }
+  /* Find the identifier terminal node */
+  SyntaxTreeNode *id_node = find_child_by_name(node, "id", NODE_TERMINAL);
 
   if (!id_node) {
     DEBUG_PRINT("ERROR: Identifier terminal node not found");
-
     /* Use a placeholder */
     static int id_counter = 0;
     char placeholder[32];
     snprintf(placeholder, sizeof(placeholder), "id_%d", id_counter++);
 
-    if (!node->attributes) {
-      node->attributes = sdt_attributes_create();
+    if (!ensure_attributes(node)) {
+      return false;
     }
+
     node->attributes->place = safe_strdup(placeholder);
     DEBUG_PRINT("Using placeholder '%s' for missing identifier",
                 node->attributes->place);
@@ -943,23 +968,24 @@ static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Check identifier value */
   if (id_node->token.str_val[0] == '\0') {
     DEBUG_PRINT("WARNING: Empty identifier");
-
     /* Use a placeholder */
     static int id_counter = 0;
     char placeholder[32];
     snprintf(placeholder, sizeof(placeholder), "id_%d", id_counter++);
 
-    if (!node->attributes) {
-      node->attributes = sdt_attributes_create();
+    if (!ensure_attributes(node)) {
+      return false;
     }
+
     node->attributes->place = safe_strdup(placeholder);
     DEBUG_PRINT("Using placeholder '%s' for empty identifier",
                 node->attributes->place);
   } else {
     /* Use the actual identifier */
-    if (!node->attributes) {
-      node->attributes = sdt_attributes_create();
+    if (!ensure_attributes(node)) {
+      return false;
     }
+
     node->attributes->place = safe_strdup(id_node->token.str_val);
     DEBUG_PRINT("Factor place set to identifier: %s", node->attributes->place);
   }
@@ -976,6 +1002,7 @@ static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
 static bool action_F_INT(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Find the integer terminal node */
   SyntaxTreeNode *int_node = NULL;
+
   for (int i = 0; i < node->children_count; i++) {
     if (node->children[i]->type == NODE_TERMINAL) {
       const char *symbol = node->children[i]->symbol_name;
@@ -995,175 +1022,19 @@ static bool action_F_INT(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Convert integer value to string */
   char value_str[64];
   int value = int_node->token.num_val;
+
   if (safe_itoa(value, value_str, 64, 10) == NULL) {
     fprintf(stderr, "Error converting integer to string\n");
     return false;
   }
 
   /* Set place to integer value */
-  if (!node->attributes) {
-    node->attributes = sdt_attributes_create();
+  if (!ensure_attributes(node)) {
+    return false;
   }
+
   node->attributes->place = safe_strdup(value_str);
   DEBUG_PRINT("Factor place set to integer: %d", value);
 
-  return true;
-}
-
-/**
- * @brief Semantic action for S → if C then S1 N
- */
-static bool action_S_IF(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!node || node->children_count < 5) {
-    DEBUG_PRINT("ERROR: Invalid if-statement structure");
-    return false;
-  }
-
-  SyntaxTreeNode *C_node = node->children[1];
-  SyntaxTreeNode *S1_node = node->children[3];
-  SyntaxTreeNode *N_node = node->children[4];
-
-  /* 1. 确保 C_node 属性结构 */
-  if (!C_node->attributes) {
-    C_node->attributes = sdt_attributes_create();
-    if (!C_node->attributes)
-      return false;
-  }
-
-  /* 2. 生成标签 */
-  char *true_label = label_manager_new_label(gen->label_manager);
-  char *next_label;
-  if (node->attributes && node->attributes->next_label) {
-    next_label = safe_strdup(node->attributes->next_label);
-  } else {
-    next_label = label_manager_new_label(gen->label_manager);
-  }
-  bool has_else = (N_node->production_id == PROD_N_ELSE_S);
-  char *false_label =
-      has_else ? label_manager_new_label(gen->label_manager) : next_label;
-
-  /* 3. 保存到 C_node */
-  C_node->attributes->true_label = true_label;
-  C_node->attributes->false_label = false_label;
-
-  /* 4. 把 next_label 和 true_label 都留在 if 节点属性 */
-  if (!node->attributes)
-    node->attributes = sdt_attributes_create();
-  node->attributes->next_label = safe_strdup(next_label);
-  node->attributes->true_label = safe_strdup(true_label);
-
-  /* —— 【新增】把 true_label 也传递给 then-节点 S1_node —— */
-  if (!S1_node->attributes)
-    S1_node->attributes = sdt_attributes_create();
-  S1_node->attributes->true_label = safe_strdup(true_label);
-  S1_node->attributes->next_label = safe_strdup(next_label);
-
-  /* 5. 生成 C 的代码 */
-  sdt_codegen_generate(gen, C_node);
-
-  /* 6. 判断 then 分支是不是控制结构 */
-  bool is_ctrl = (S1_node->production_id == PROD_S_WHILE_C_DO_S ||
-                  S1_node->production_id == PROD_S_IF_C_THEN_S_N ||
-                  S1_node->production_id == PROD_S_BEGIN_L_END);
-
-  /* 7. 输出 true_label（若 then 不是控制结构） */
-  if (!is_ctrl) {
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
-  }
-
-  /* 8. 生成 then 分支 */
-  sdt_codegen_generate(gen, S1_node);
-
-  /* 9. 处理 else */
-  if (has_else) {
-    if (!is_ctrl) {
-      tac_program_add_inst(gen->program, TAC_OP_GOTO, next_label, NULL, NULL,
-                           0);
-    }
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, false_label, NULL, NULL,
-                         0);
-    if (N_node->children_count > 1) {
-      SyntaxTreeNode *else_stmt = N_node->children[1];
-      if (!else_stmt->attributes)
-        else_stmt->attributes = sdt_attributes_create();
-      else_stmt->attributes->next_label = safe_strdup(next_label);
-      sdt_codegen_generate(gen, else_stmt);
-    }
-  }
-
-  DEBUG_PRINT("Generated if: true=%s false=%s next=%s", true_label, false_label,
-              next_label);
-  return true;
-}
-
-/**
- * @brief Semantic action for S → while C do S1
- */
-static bool action_S_WHILE(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (!node || node->children_count < 4) {
-    DEBUG_PRINT("ERROR: Invalid while-statement structure");
-    return false;
-  }
-
-  SyntaxTreeNode *C_node = node->children[1];
-  SyntaxTreeNode *S1_node = node->children[3];
-
-  /* 1. 确保 C_node 属性 */
-  if (!C_node->attributes) {
-    C_node->attributes = sdt_attributes_create();
-    if (!C_node->attributes)
-      return false;
-  }
-
-  /* 2. 准备循环退出标签 next_label */
-  bool inherited = (node->attributes && node->attributes->next_label);
-  char *next_label;
-  if (inherited) {
-    next_label = safe_strdup(node->attributes->next_label);
-  } else {
-    next_label = label_manager_new_label(gen->label_manager);
-    if (!node->attributes)
-      node->attributes = sdt_attributes_create();
-    node->attributes->next_label = safe_strdup(next_label);
-  }
-
-  /* 3. 入口标签 begin_label：优先继承 if 真分支 true_label */
-  char *begin_label;
-  if (node->attributes && node->attributes->true_label) {
-    begin_label = safe_strdup(node->attributes->true_label);
-  } else {
-    begin_label = label_manager_new_label(gen->label_manager);
-  }
-
-  /* 4. 本层循环的真/假标签 */
-  char *true_label = label_manager_new_label(gen->label_manager);
-  C_node->attributes->true_label = true_label;
-  C_node->attributes->false_label = next_label;
-
-  /* 5. 输出循环入口 */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, begin_label, NULL, NULL, 0);
-
-  /* 6. 生成条件判断 */
-  sdt_codegen_generate(gen, C_node);
-
-  /* 7. 条件为真就进循环体 */
-  tac_program_add_inst(gen->program, TAC_OP_LABEL, true_label, NULL, NULL, 0);
-
-  /* 8. 生成循环体，回跳标签傳给 S1_node */
-  if (!S1_node->attributes)
-    S1_node->attributes = sdt_attributes_create();
-  S1_node->attributes->next_label = safe_strdup(begin_label);
-  sdt_codegen_generate(gen, S1_node);
-
-  /* 9. 跳回循环入口 */
-  tac_program_add_inst(gen->program, TAC_OP_GOTO, begin_label, NULL, NULL, 0);
-
-  /* 10. 最外层才输出退出标签 */
-  if (!inherited) {
-    tac_program_add_inst(gen->program, TAC_OP_LABEL, next_label, NULL, NULL, 0);
-  }
-
-  DEBUG_PRINT("Generated while: begin=%s true=%s false=%s", begin_label,
-              true_label, next_label);
   return true;
 }

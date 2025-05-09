@@ -19,7 +19,7 @@ static const char *token_type_strings[] = {
     /* Delimiters */
     "SLP", "SRP", "SEMI",
     /* Identifiers and literals */
-    "IDN", "DEC", "OCT", "HEX", "ILOCT", "ILHEX"};
+    "IDN", "DEC", "OCT", "HEX", "ILOCT", "ILHEX", "EOF"};
 
 /**
  * Get string representation of token type
