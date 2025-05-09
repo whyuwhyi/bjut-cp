@@ -4,6 +4,7 @@
  */
 
 #include "parser/syntax_tree.h"
+#include "lexer_analyzer/token.h"
 #include "parser_common.h"
 #include "utils.h"
 #include <stdio.h>
@@ -27,7 +28,7 @@ SyntaxTree *syntax_tree_create(void) {
 /**
  * @brief Helper function to destroy a syntax tree node recursively
  */
-static void destroy_syntax_tree_node(SyntaxTreeNode *node) {
+void destroy_syntax_tree_node(SyntaxTreeNode *node) {
   if (!node) {
     return;
   }

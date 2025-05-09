@@ -1,6 +1,6 @@
 mainmenu "Compiler Project Configuration"
 
-menu "Build Options"
+menu "Debug Options"
     config DEBUG
         bool "Enable debug output"
         default y
@@ -8,9 +8,8 @@ menu "Build Options"
           Enable debug output in the console.
 endmenu
 
-menu "Lexer Configuration"
     choice
-        prompt "Lexical Analyzer Implementation"
+        prompt "Lexer Type"
         default LEXER_REGEX
         help
           Select the implementation method for the lexical analyzer.
@@ -28,7 +27,6 @@ menu "Lexer Configuration"
           Use a hand-written state machine to implement the lexical analyzer.
           This approach is typically faster but more complex to maintain.
     endchoice
-endmenu
 
 menu "Parser Configuration"
     choice

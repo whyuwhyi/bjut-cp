@@ -67,6 +67,13 @@ typedef struct {
 SyntaxTree *syntax_tree_create(void);
 
 /**
+ * @brief Helper function to destroy a syntax tree node recursively
+ *
+ * @param node Node to destroy
+ */
+void destroy_syntax_tree_node(SyntaxTreeNode *node);
+
+/**
  * @brief Destroy a syntax tree and free resources
  *
  * @param tree Tree to destroy
