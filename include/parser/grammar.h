@@ -203,6 +203,20 @@ int grammar_find_production(Grammar *grammar, int lhs, Symbol *rhs,
                             int rhs_length);
 
 /**
+ * @brief Print the FIRST sets for all non-terminals in the grammar
+ *
+ * @param grammar Grammar to print FIRST sets for
+ */
+void grammar_print_first_sets(Grammar *grammar);
+
+/**
+ * @brief Print the FOLLOW sets for all non-terminals in the grammar
+ *
+ * @param grammar Grammar to print FOLLOW sets for
+ */
+void grammar_print_follow_sets(Grammar *grammar);
+
+/**
  * @brief Define non-terminal symbol IDs for the grammar
  */
 typedef enum {

@@ -1,220 +1,2470 @@
-Syntax Tree:
-P (Production: 0)
-  L (Production: 3)
-    S (Production: 6)
-      while [WHILE      -]
-      C (Production: 10)
-        ( [SLP        -]
-        E (Production: 17)
-          R (Production: 21)
-            F (Production: 25)
-              ( [SLP        -]
-              E (Production: 17)
-                R (Production: 21)
-                  F (Production: 26)
-                    id [IDN        a3]
-                  Y (Production: 24)
-                    ε
-                X (Production: 18)
-                  + [ADD        -]
-                  R (Production: 21)
-                    F (Production: 28)
-                      int10 [DEC        15]
-                    Y (Production: 24)
-                      ε
-                  X (Production: 20)
-                    ε
-              ) [SRP        -]
-            Y (Production: 24)
-              ε
-          X (Production: 20)
-            ε
-        > [GT         -]
-        E (Production: 17)
-          R (Production: 21)
-            F (Production: 29)
-              int16 [HEX        10]
-            Y (Production: 24)
-              ε
-          X (Production: 20)
-            ε
-      do [DO         -]
-      S (Production: 5)
-        if [IF         -]
-        C (Production: 12)
-          E (Production: 17)
-            R (Production: 21)
-              F (Production: 26)
-                id [IDN        x2]
-              Y (Production: 24)
-                ε
-            X (Production: 20)
-              ε
-          = [EQ         -]
-          E (Production: 17)
-            R (Production: 21)
-              F (Production: 27)
-                int8 [OCT        7]
-              Y (Production: 24)
-                ε
-            X (Production: 20)
-              ε
-        then [THEN       -]
-        S (Production: 6)
-          while [WHILE      -]
-          C (Production: 11)
-            E (Production: 17)
-              R (Production: 21)
-                F (Production: 26)
-                  id [IDN        y]
-                Y (Production: 24)
-                  ε
-              X (Production: 20)
-                ε
-            < [LT         -]
-            E (Production: 17)
-              R (Production: 21)
-                F (Production: 26)
-                  id [IDN        z]
-                Y (Production: 24)
-                  ε
-              X (Production: 20)
-                ε
-          do [DO         -]
-          S (Production: 4)
-            id [IDN        y]
-            = [EQ         -]
-            E (Production: 17)
-              R (Production: 21)
-                F (Production: 26)
-                  id [IDN        x]
-                Y (Production: 22)
-                  * [MUL        -]
-                  F (Production: 26)
-                    id [IDN        y]
-                  Y (Production: 23)
-                    / [DIV        -]
-                    F (Production: 26)
-                      id [IDN        z]
-                    Y (Production: 24)
-                      ε
-              X (Production: 20)
-                ε
-        N (Production: 9)
-          ε
-    ; [SEMI       -]
-  T (Production: 1)
-    P (Production: 0)
-      L (Production: 3)
-        S (Production: 4)
-          id [IDN        c]
-          = [EQ         -]
-          E (Production: 17)
-            R (Production: 21)
-              F (Production: 26)
-                id [IDN        b]
-              Y (Production: 22)
-                * [MUL        -]
-                F (Production: 26)
-                  id [IDN        c]
-                Y (Production: 24)
-                  ε
-            X (Production: 18)
-              + [ADD        -]
-              R (Production: 21)
-                F (Production: 26)
-                  id [IDN        d]
-                Y (Production: 24)
-                  ε
-              X (Production: 20)
-                ε
-        ; [SEMI       -]
-      T (Production: 2)
-        ε
-    T (Production: 2)
-      ε
-Leftmost Derivation:
-  1: F -> id
-  2: Y -> ε
-  3: R -> F Y
-  4: F -> int10
-  5: Y -> ε
-  6: R -> F Y
-  7: X -> ε
-  8: X -> + R X
-  9: E -> R X
-  10: F -> id
-  11: Y -> ε
-  12: R -> F Y
-  13: F -> int10
-  14: Y -> ε
-  15: R -> F Y
-  16: X -> ε
-  17: X -> + R X
-  18: E -> R X
-  19: F -> ( E )
-  20: Y -> ε
-  21: R -> F Y
-  22: X -> ε
-  23: E -> R X
-  24: F -> int16
-  25: Y -> ε
-  26: R -> F Y
-  27: X -> ε
-  28: E -> R X
-  29: C -> E > E
-  30: F -> id
-  31: Y -> ε
-  32: R -> F Y
-  33: X -> ε
-  34: E -> R X
-  35: F -> int8
-  36: Y -> ε
-  37: R -> F Y
-  38: X -> ε
-  39: E -> R X
-  40: C -> E = E
-  41: F -> id
-  42: Y -> ε
-  43: R -> F Y
-  44: X -> ε
-  45: E -> R X
-  46: F -> id
-  47: Y -> ε
-  48: R -> F Y
-  49: X -> ε
-  50: E -> R X
-  51: C -> E < E
-  52: F -> id
-  53: F -> id
-  54: F -> id
-  55: Y -> ε
-  56: Y -> / F Y
-  57: Y -> * F Y
-  58: R -> F Y
-  59: X -> ε
-  60: E -> R X
-  61: S -> id = E
-  62: S -> while C do S
-  63: N -> ε
-  64: S -> if C then S N
-  65: S -> while C do S
-  66: L -> S ;
-  67: F -> id
-  68: F -> id
-  69: Y -> ε
-  70: Y -> * F Y
-  71: R -> F Y
-  72: F -> id
-  73: Y -> ε
-  74: R -> F Y
-  75: X -> ε
-  76: X -> + R X
-  77: E -> R X
-  78: S -> id = E
-  79: L -> S ;
-  80: T -> ε
-  81: P -> L T
-  82: T -> ε
-  83: T -> P T
-  84: P -> L T
+Compiler v0.1.0
+Reading source from stdin (end with Ctrl+D on Unix or Ctrl+Z on Windows)
+Tokenizing input...
+Creating LR(1) parser...
+Initializing parser...
+
+FIRST Sets:
+FIRST(P) = { id if while begin }
+FIRST(L) = { id if while begin }
+FIRST(S) = { id if while begin }
+FIRST(N) = { else ε }
+FIRST(C) = { id int10 int8 int16 ( }
+FIRST(E) = { id int10 int8 int16 ( }
+FIRST(X) = { + - ε }
+FIRST(R) = { id int10 int8 int16 ( }
+FIRST(Y) = { * / ε }
+FIRST(F) = { id int10 int8 int16 ( }
+FIRST(T) = { id if while begin ε }
+FIRST(S') = { id if while begin }
+
+FOLLOW Sets:
+FOLLOW(P) = { id if while begin # }
+FOLLOW(L) = { id if while begin end # }
+FOLLOW(S) = { ; else }
+FOLLOW(N) = { ; else }
+FOLLOW(C) = { ) then do }
+FOLLOW(E) = { > < = >= <= <> ) ; then else do }
+FOLLOW(X) = { > < = >= <= <> ) ; then else do }
+FOLLOW(R) = { + - > < = >= <= <> ) ; then else do }
+FOLLOW(Y) = { + - > < = >= <= <> ) ; then else do }
+FOLLOW(F) = { + - * / > < = >= <= <> ) ; then else do }
+FOLLOW(T) = { id if while begin # }
+FOLLOW(S') = { # }
+LR Automaton:
+-------------
+State 0:
+  S' -> • P # , [#]
+  P -> • L T , [#]
+  L -> • S ; , [id, if, while, begin, #]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    P -> State 1
+    L -> State 2
+    S -> State 3
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 1:
+  S' -> P • # , [#]
+  Transitions:
+    # -> State 8
+
+State 2:
+  P -> L • T , [#]
+  T -> • P T , [#]
+  T -> • ε , [#]
+  P -> • L T , [id, if, while, begin, #]
+  L -> • S ; , [id, if, while, begin, #]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    P -> State 9
+    L -> State 10
+    S -> State 3
+    T -> State 11
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 3:
+  L -> S • ; , [id, if, while, begin, #]
+  Transitions:
+    ; -> State 12
+
+State 4:
+  S -> id • = E , [;]
+  Transitions:
+    = -> State 13
+
+State 5:
+  S -> if • C then S N , [;]
+  C -> • E > E , [then]
+  C -> • E < E , [then]
+  C -> • E = E , [then]
+  C -> • E >= E , [then]
+  C -> • E <= E , [then]
+  C -> • E <> E , [then]
+  C -> • ( C ) , [then]
+  E -> • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 14
+    E -> State 15
+    R -> State 16
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 22
+
+State 6:
+  S -> while • C do S , [;]
+  C -> • E > E , [do]
+  C -> • E < E , [do]
+  C -> • E = E , [do]
+  C -> • E >= E , [do]
+  C -> • E <= E , [do]
+  C -> • E <> E , [do]
+  C -> • ( C ) , [do]
+  E -> • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 23
+    E -> State 24
+    R -> State 16
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 25
+
+State 7:
+  S -> begin • L end , [;]
+  L -> • S ; , [end]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    L -> State 26
+    S -> State 27
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 8:
+  S' -> P # • , [#]
+  Transitions:
+
+State 9:
+  T -> P • T , [#]
+  T -> • P T , [#]
+  T -> • ε , [#]
+  P -> • L T , [id, if, while, begin, #]
+  L -> • S ; , [id, if, while, begin, #]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    P -> State 9
+    L -> State 10
+    S -> State 3
+    T -> State 28
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 10:
+  P -> L • T , [id, if, while, begin, #]
+  T -> • P T , [id, if, while, begin, #]
+  T -> • ε , [id, if, while, begin, #]
+  P -> • L T , [id, if, while, begin, #]
+  L -> • S ; , [id, if, while, begin, #]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    P -> State 29
+    L -> State 10
+    S -> State 3
+    T -> State 30
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 11:
+  P -> L T • , [#]
+  Transitions:
+
+State 12:
+  L -> S ; • , [id, if, while, begin, #]
+  Transitions:
+
+State 13:
+  S -> id = • E , [;]
+  E -> • R X , [;]
+  R -> • F Y , [+, -, ;]
+  F -> • ( E ) , [*, /, +, -, ;]
+  F -> • id , [*, /, +, -, ;]
+  F -> • int8 , [*, /, +, -, ;]
+  F -> • int10 , [*, /, +, -, ;]
+  F -> • int16 , [*, /, +, -, ;]
+  Transitions:
+    E -> State 31
+    R -> State 32
+    F -> State 33
+    id -> State 34
+    int10 -> State 35
+    int8 -> State 36
+    int16 -> State 37
+    ( -> State 38
+
+State 14:
+  S -> if C • then S N , [;]
+  Transitions:
+    then -> State 39
+
+State 15:
+  C -> E • > E , [then]
+  C -> E • < E , [then]
+  C -> E • = E , [then]
+  C -> E • >= E , [then]
+  C -> E • <= E , [then]
+  C -> E • <> E , [then]
+  Transitions:
+    > -> State 40
+    < -> State 41
+    = -> State 42
+    >= -> State 43
+    <= -> State 44
+    <> -> State 45
+
+State 16:
+  E -> R • X , [>, <, =, >=, <=, <>]
+  X -> • + R X , [>, <, =, >=, <=, <>]
+  X -> • - R X , [>, <, =, >=, <=, <>]
+  X -> • ε , [>, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 46
+    + -> State 47
+    - -> State 48
+
+State 17:
+  R -> F • Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 49
+    * -> State 50
+    / -> State 51
+
+State 18:
+  F -> id • , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 19:
+  F -> int10 • , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 20:
+  F -> int8 • , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 21:
+  F -> int16 • , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 22:
+  C -> ( • C ) , [then]
+  F -> ( • E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  C -> • E > E , [)]
+  C -> • E < E , [)]
+  C -> • E = E , [)]
+  C -> • E >= E , [)]
+  C -> • E <= E , [)]
+  C -> • E <> E , [)]
+  C -> • ( C ) , [)]
+  E -> • R X , [), >, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 52
+    E -> State 53
+    R -> State 54
+    F -> State 55
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 60
+
+State 23:
+  S -> while C • do S , [;]
+  Transitions:
+    do -> State 61
+
+State 24:
+  C -> E • > E , [do]
+  C -> E • < E , [do]
+  C -> E • = E , [do]
+  C -> E • >= E , [do]
+  C -> E • <= E , [do]
+  C -> E • <> E , [do]
+  Transitions:
+    > -> State 62
+    < -> State 63
+    = -> State 64
+    >= -> State 65
+    <= -> State 66
+    <> -> State 67
+
+State 25:
+  C -> ( • C ) , [do]
+  F -> ( • E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  C -> • E > E , [)]
+  C -> • E < E , [)]
+  C -> • E = E , [)]
+  C -> • E >= E , [)]
+  C -> • E <= E , [)]
+  C -> • E <> E , [)]
+  C -> • ( C ) , [)]
+  E -> • R X , [), >, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 68
+    E -> State 53
+    R -> State 54
+    F -> State 55
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 60
+
+State 26:
+  S -> begin L • end , [;]
+  Transitions:
+    end -> State 69
+
+State 27:
+  L -> S • ; , [end]
+  Transitions:
+    ; -> State 70
+
+State 28:
+  T -> P T • , [#]
+  Transitions:
+
+State 29:
+  T -> P • T , [id, if, while, begin, #]
+  T -> • P T , [id, if, while, begin, #]
+  T -> • ε , [id, if, while, begin, #]
+  P -> • L T , [id, if, while, begin, #]
+  L -> • S ; , [id, if, while, begin, #]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    P -> State 29
+    L -> State 10
+    S -> State 3
+    T -> State 71
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 30:
+  P -> L T • , [id, if, while, begin, #]
+  Transitions:
+
+State 31:
+  S -> id = E • , [;]
+  Transitions:
+
+State 32:
+  E -> R • X , [;]
+  X -> • + R X , [;]
+  X -> • - R X , [;]
+  X -> • ε , [;]
+  Transitions:
+    X -> State 72
+    + -> State 73
+    - -> State 74
+
+State 33:
+  R -> F • Y , [+, -, ;]
+  Y -> • * F Y , [+, -, ;]
+  Y -> • / F Y , [+, -, ;]
+  Y -> • ε , [+, -, ;]
+  Transitions:
+    Y -> State 75
+    * -> State 76
+    / -> State 77
+
+State 34:
+  F -> id • , [*, /, +, -, ;]
+  Transitions:
+
+State 35:
+  F -> int10 • , [*, /, +, -, ;]
+  Transitions:
+
+State 36:
+  F -> int8 • , [*, /, +, -, ;]
+  Transitions:
+
+State 37:
+  F -> int16 • , [*, /, +, -, ;]
+  Transitions:
+
+State 38:
+  F -> ( • E ) , [*, /, +, -, ;]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 78
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 39:
+  S -> if C then • S N , [;]
+  S -> • id = E , [else, ;]
+  S -> • if C then S N , [else, ;]
+  S -> • while C do S , [else, ;]
+  S -> • begin L end , [else, ;]
+  Transitions:
+    S -> State 86
+    id -> State 87
+    if -> State 88
+    while -> State 89
+    begin -> State 90
+
+State 40:
+  C -> E > • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 91
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 41:
+  C -> E < • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 99
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 42:
+  C -> E = • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 100
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 43:
+  C -> E >= • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 101
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 44:
+  C -> E <= • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 102
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 45:
+  C -> E <> • E , [then]
+  E -> • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    E -> State 103
+    R -> State 92
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 46:
+  E -> R X • , [>, <, =, >=, <=, <>]
+  Transitions:
+
+State 47:
+  X -> + • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    R -> State 104
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 105
+
+State 48:
+  X -> - • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    R -> State 106
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 105
+
+State 49:
+  R -> F Y • , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 50:
+  Y -> * • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    F -> State 107
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 105
+
+State 51:
+  Y -> / • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    F -> State 108
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 105
+
+State 52:
+  C -> ( C • ) , [then]
+  Transitions:
+    ) -> State 109
+
+State 53:
+  F -> ( E • ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  C -> E • > E , [)]
+  C -> E • < E , [)]
+  C -> E • = E , [)]
+  C -> E • >= E , [)]
+  C -> E • <= E , [)]
+  C -> E • <> E , [)]
+  Transitions:
+    > -> State 110
+    < -> State 111
+    = -> State 112
+    >= -> State 113
+    <= -> State 114
+    <> -> State 115
+    ) -> State 116
+
+State 54:
+  E -> R • X , [), >, <, =, >=, <=, <>]
+  X -> • + R X , [), >, <, =, >=, <=, <>]
+  X -> • - R X , [), >, <, =, >=, <=, <>]
+  X -> • ε , [), >, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 117
+    + -> State 118
+    - -> State 119
+
+State 55:
+  R -> F • Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 120
+    * -> State 121
+    / -> State 122
+
+State 56:
+  F -> id • , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 57:
+  F -> int10 • , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 58:
+  F -> int8 • , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 59:
+  F -> int16 • , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 60:
+  C -> ( • C ) , [)]
+  F -> ( • E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  C -> • E > E , [)]
+  C -> • E < E , [)]
+  C -> • E = E , [)]
+  C -> • E >= E , [)]
+  C -> • E <= E , [)]
+  C -> • E <> E , [)]
+  C -> • ( C ) , [)]
+  E -> • R X , [), >, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 123
+    E -> State 124
+    R -> State 54
+    F -> State 55
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 60
+
+State 61:
+  S -> while C do • S , [;]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    S -> State 125
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 62:
+  C -> E > • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 126
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 63:
+  C -> E < • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 134
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 64:
+  C -> E = • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 135
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 65:
+  C -> E >= • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 136
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 66:
+  C -> E <= • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 137
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 67:
+  C -> E <> • E , [do]
+  E -> • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    E -> State 138
+    R -> State 127
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 68:
+  C -> ( C • ) , [do]
+  Transitions:
+    ) -> State 139
+
+State 69:
+  S -> begin L end • , [;]
+  Transitions:
+
+State 70:
+  L -> S ; • , [end]
+  Transitions:
+
+State 71:
+  T -> P T • , [id, if, while, begin, #]
+  Transitions:
+
+State 72:
+  E -> R X • , [;]
+  Transitions:
+
+State 73:
+  X -> + • R X , [;]
+  R -> • F Y , [+, -, ;]
+  F -> • ( E ) , [*, /, +, -, ;]
+  F -> • id , [*, /, +, -, ;]
+  F -> • int8 , [*, /, +, -, ;]
+  F -> • int10 , [*, /, +, -, ;]
+  F -> • int16 , [*, /, +, -, ;]
+  Transitions:
+    R -> State 140
+    F -> State 33
+    id -> State 34
+    int10 -> State 35
+    int8 -> State 36
+    int16 -> State 37
+    ( -> State 38
+
+State 74:
+  X -> - • R X , [;]
+  R -> • F Y , [+, -, ;]
+  F -> • ( E ) , [*, /, +, -, ;]
+  F -> • id , [*, /, +, -, ;]
+  F -> • int8 , [*, /, +, -, ;]
+  F -> • int10 , [*, /, +, -, ;]
+  F -> • int16 , [*, /, +, -, ;]
+  Transitions:
+    R -> State 141
+    F -> State 33
+    id -> State 34
+    int10 -> State 35
+    int8 -> State 36
+    int16 -> State 37
+    ( -> State 38
+
+State 75:
+  R -> F Y • , [+, -, ;]
+  Transitions:
+
+State 76:
+  Y -> * • F Y , [+, -, ;]
+  F -> • ( E ) , [*, /, +, -, ;]
+  F -> • id , [*, /, +, -, ;]
+  F -> • int8 , [*, /, +, -, ;]
+  F -> • int10 , [*, /, +, -, ;]
+  F -> • int16 , [*, /, +, -, ;]
+  Transitions:
+    F -> State 142
+    id -> State 34
+    int10 -> State 35
+    int8 -> State 36
+    int16 -> State 37
+    ( -> State 38
+
+State 77:
+  Y -> / • F Y , [+, -, ;]
+  F -> • ( E ) , [*, /, +, -, ;]
+  F -> • id , [*, /, +, -, ;]
+  F -> • int8 , [*, /, +, -, ;]
+  F -> • int10 , [*, /, +, -, ;]
+  F -> • int16 , [*, /, +, -, ;]
+  Transitions:
+    F -> State 143
+    id -> State 34
+    int10 -> State 35
+    int8 -> State 36
+    int16 -> State 37
+    ( -> State 38
+
+State 78:
+  F -> ( E • ) , [*, /, +, -, ;]
+  Transitions:
+    ) -> State 144
+
+State 79:
+  E -> R • X , [)]
+  X -> • + R X , [)]
+  X -> • - R X , [)]
+  X -> • ε , [)]
+  Transitions:
+    X -> State 145
+    + -> State 146
+    - -> State 147
+
+State 80:
+  R -> F • Y , [+, -, )]
+  Y -> • * F Y , [+, -, )]
+  Y -> • / F Y , [+, -, )]
+  Y -> • ε , [+, -, )]
+  Transitions:
+    Y -> State 148
+    * -> State 149
+    / -> State 150
+
+State 81:
+  F -> id • , [*, /, +, -, )]
+  Transitions:
+
+State 82:
+  F -> int10 • , [*, /, +, -, )]
+  Transitions:
+
+State 83:
+  F -> int8 • , [*, /, +, -, )]
+  Transitions:
+
+State 84:
+  F -> int16 • , [*, /, +, -, )]
+  Transitions:
+
+State 85:
+  F -> ( • E ) , [*, /, +, -, )]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 151
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 86:
+  S -> if C then S • N , [;]
+  N -> • else S , [;]
+  N -> • ε , [;]
+  Transitions:
+    N -> State 152
+    else -> State 153
+
+State 87:
+  S -> id • = E , [else, ;]
+  Transitions:
+    = -> State 154
+
+State 88:
+  S -> if • C then S N , [else, ;]
+  C -> • E > E , [then]
+  C -> • E < E , [then]
+  C -> • E = E , [then]
+  C -> • E >= E , [then]
+  C -> • E <= E , [then]
+  C -> • E <> E , [then]
+  C -> • ( C ) , [then]
+  E -> • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 155
+    E -> State 15
+    R -> State 16
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 22
+
+State 89:
+  S -> while • C do S , [else, ;]
+  C -> • E > E , [do]
+  C -> • E < E , [do]
+  C -> • E = E , [do]
+  C -> • E >= E , [do]
+  C -> • E <= E , [do]
+  C -> • E <> E , [do]
+  C -> • ( C ) , [do]
+  E -> • R X , [>, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    C -> State 156
+    E -> State 24
+    R -> State 16
+    F -> State 17
+    id -> State 18
+    int10 -> State 19
+    int8 -> State 20
+    int16 -> State 21
+    ( -> State 25
+
+State 90:
+  S -> begin • L end , [else, ;]
+  L -> • S ; , [end]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    L -> State 157
+    S -> State 27
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 91:
+  C -> E > E • , [then]
+  Transitions:
+
+State 92:
+  E -> R • X , [then]
+  X -> • + R X , [then]
+  X -> • - R X , [then]
+  X -> • ε , [then]
+  Transitions:
+    X -> State 158
+    + -> State 159
+    - -> State 160
+
+State 93:
+  R -> F • Y , [+, -, then]
+  Y -> • * F Y , [+, -, then]
+  Y -> • / F Y , [+, -, then]
+  Y -> • ε , [+, -, then]
+  Transitions:
+    Y -> State 161
+    * -> State 162
+    / -> State 163
+
+State 94:
+  F -> id • , [*, /, +, -, then]
+  Transitions:
+
+State 95:
+  F -> int10 • , [*, /, +, -, then]
+  Transitions:
+
+State 96:
+  F -> int8 • , [*, /, +, -, then]
+  Transitions:
+
+State 97:
+  F -> int16 • , [*, /, +, -, then]
+  Transitions:
+
+State 98:
+  F -> ( • E ) , [*, /, +, -, then]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 164
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 99:
+  C -> E < E • , [then]
+  Transitions:
+
+State 100:
+  C -> E = E • , [then]
+  Transitions:
+
+State 101:
+  C -> E >= E • , [then]
+  Transitions:
+
+State 102:
+  C -> E <= E • , [then]
+  Transitions:
+
+State 103:
+  C -> E <> E • , [then]
+  Transitions:
+
+State 104:
+  X -> + R • X , [>, <, =, >=, <=, <>]
+  X -> • + R X , [>, <, =, >=, <=, <>]
+  X -> • - R X , [>, <, =, >=, <=, <>]
+  X -> • ε , [>, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 165
+    + -> State 47
+    - -> State 48
+
+State 105:
+  F -> ( • E ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 166
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 106:
+  X -> - R • X , [>, <, =, >=, <=, <>]
+  X -> • + R X , [>, <, =, >=, <=, <>]
+  X -> • - R X , [>, <, =, >=, <=, <>]
+  X -> • ε , [>, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 167
+    + -> State 47
+    - -> State 48
+
+State 107:
+  Y -> * F • Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 168
+    * -> State 50
+    / -> State 51
+
+State 108:
+  Y -> / F • Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 169
+    * -> State 50
+    / -> State 51
+
+State 109:
+  C -> ( C ) • , [then]
+  Transitions:
+
+State 110:
+  C -> E > • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 170
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 111:
+  C -> E < • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 171
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 112:
+  C -> E = • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 172
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 113:
+  C -> E >= • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 173
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 114:
+  C -> E <= • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 174
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 115:
+  C -> E <> • E , [)]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 175
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 116:
+  F -> ( E ) • , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 117:
+  E -> R X • , [), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 118:
+  X -> + • R X , [), >, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    R -> State 176
+    F -> State 55
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 177
+
+State 119:
+  X -> - • R X , [), >, <, =, >=, <=, <>]
+  R -> • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    R -> State 178
+    F -> State 55
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 177
+
+State 120:
+  R -> F Y • , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 121:
+  Y -> * • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    F -> State 179
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 177
+
+State 122:
+  Y -> / • F Y , [+, -, ), >, <, =, >=, <=, <>]
+  F -> • ( E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • id , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int8 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int10 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  F -> • int16 , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    F -> State 180
+    id -> State 56
+    int10 -> State 57
+    int8 -> State 58
+    int16 -> State 59
+    ( -> State 177
+
+State 123:
+  C -> ( C • ) , [)]
+  Transitions:
+    ) -> State 181
+
+State 124:
+  F -> ( E • ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  C -> E • > E , [)]
+  C -> E • < E , [)]
+  C -> E • = E , [)]
+  C -> E • >= E , [)]
+  C -> E • <= E , [)]
+  C -> E • <> E , [)]
+  Transitions:
+    > -> State 110
+    < -> State 111
+    = -> State 112
+    >= -> State 113
+    <= -> State 114
+    <> -> State 115
+    ) -> State 182
+
+State 125:
+  S -> while C do S • , [;]
+  Transitions:
+
+State 126:
+  C -> E > E • , [do]
+  Transitions:
+
+State 127:
+  E -> R • X , [do]
+  X -> • + R X , [do]
+  X -> • - R X , [do]
+  X -> • ε , [do]
+  Transitions:
+    X -> State 183
+    + -> State 184
+    - -> State 185
+
+State 128:
+  R -> F • Y , [+, -, do]
+  Y -> • * F Y , [+, -, do]
+  Y -> • / F Y , [+, -, do]
+  Y -> • ε , [+, -, do]
+  Transitions:
+    Y -> State 186
+    * -> State 187
+    / -> State 188
+
+State 129:
+  F -> id • , [*, /, +, -, do]
+  Transitions:
+
+State 130:
+  F -> int10 • , [*, /, +, -, do]
+  Transitions:
+
+State 131:
+  F -> int8 • , [*, /, +, -, do]
+  Transitions:
+
+State 132:
+  F -> int16 • , [*, /, +, -, do]
+  Transitions:
+
+State 133:
+  F -> ( • E ) , [*, /, +, -, do]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 189
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 134:
+  C -> E < E • , [do]
+  Transitions:
+
+State 135:
+  C -> E = E • , [do]
+  Transitions:
+
+State 136:
+  C -> E >= E • , [do]
+  Transitions:
+
+State 137:
+  C -> E <= E • , [do]
+  Transitions:
+
+State 138:
+  C -> E <> E • , [do]
+  Transitions:
+
+State 139:
+  C -> ( C ) • , [do]
+  Transitions:
+
+State 140:
+  X -> + R • X , [;]
+  X -> • + R X , [;]
+  X -> • - R X , [;]
+  X -> • ε , [;]
+  Transitions:
+    X -> State 190
+    + -> State 73
+    - -> State 74
+
+State 141:
+  X -> - R • X , [;]
+  X -> • + R X , [;]
+  X -> • - R X , [;]
+  X -> • ε , [;]
+  Transitions:
+    X -> State 191
+    + -> State 73
+    - -> State 74
+
+State 142:
+  Y -> * F • Y , [+, -, ;]
+  Y -> • * F Y , [+, -, ;]
+  Y -> • / F Y , [+, -, ;]
+  Y -> • ε , [+, -, ;]
+  Transitions:
+    Y -> State 192
+    * -> State 76
+    / -> State 77
+
+State 143:
+  Y -> / F • Y , [+, -, ;]
+  Y -> • * F Y , [+, -, ;]
+  Y -> • / F Y , [+, -, ;]
+  Y -> • ε , [+, -, ;]
+  Transitions:
+    Y -> State 193
+    * -> State 76
+    / -> State 77
+
+State 144:
+  F -> ( E ) • , [*, /, +, -, ;]
+  Transitions:
+
+State 145:
+  E -> R X • , [)]
+  Transitions:
+
+State 146:
+  X -> + • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    R -> State 194
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 147:
+  X -> - • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    R -> State 195
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 148:
+  R -> F Y • , [+, -, )]
+  Transitions:
+
+State 149:
+  Y -> * • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    F -> State 196
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 150:
+  Y -> / • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    F -> State 197
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 151:
+  F -> ( E • ) , [*, /, +, -, )]
+  Transitions:
+    ) -> State 198
+
+State 152:
+  S -> if C then S N • , [;]
+  Transitions:
+
+State 153:
+  N -> else • S , [;]
+  S -> • id = E , [;]
+  S -> • if C then S N , [;]
+  S -> • while C do S , [;]
+  S -> • begin L end , [;]
+  Transitions:
+    S -> State 199
+    id -> State 4
+    if -> State 5
+    while -> State 6
+    begin -> State 7
+
+State 154:
+  S -> id = • E , [else, ;]
+  E -> • R X , [else, ;]
+  R -> • F Y , [+, -, else, ;]
+  F -> • ( E ) , [*, /, +, -, else, ;]
+  F -> • id , [*, /, +, -, else, ;]
+  F -> • int8 , [*, /, +, -, else, ;]
+  F -> • int10 , [*, /, +, -, else, ;]
+  F -> • int16 , [*, /, +, -, else, ;]
+  Transitions:
+    E -> State 200
+    R -> State 201
+    F -> State 202
+    id -> State 203
+    int10 -> State 204
+    int8 -> State 205
+    int16 -> State 206
+    ( -> State 207
+
+State 155:
+  S -> if C • then S N , [else, ;]
+  Transitions:
+    then -> State 208
+
+State 156:
+  S -> while C • do S , [else, ;]
+  Transitions:
+    do -> State 209
+
+State 157:
+  S -> begin L • end , [else, ;]
+  Transitions:
+    end -> State 210
+
+State 158:
+  E -> R X • , [then]
+  Transitions:
+
+State 159:
+  X -> + • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    R -> State 211
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 160:
+  X -> - • R X , [then]
+  R -> • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    R -> State 212
+    F -> State 93
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 161:
+  R -> F Y • , [+, -, then]
+  Transitions:
+
+State 162:
+  Y -> * • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    F -> State 213
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 163:
+  Y -> / • F Y , [+, -, then]
+  F -> • ( E ) , [*, /, +, -, then]
+  F -> • id , [*, /, +, -, then]
+  F -> • int8 , [*, /, +, -, then]
+  F -> • int10 , [*, /, +, -, then]
+  F -> • int16 , [*, /, +, -, then]
+  Transitions:
+    F -> State 214
+    id -> State 94
+    int10 -> State 95
+    int8 -> State 96
+    int16 -> State 97
+    ( -> State 98
+
+State 164:
+  F -> ( E • ) , [*, /, +, -, then]
+  Transitions:
+    ) -> State 215
+
+State 165:
+  X -> + R X • , [>, <, =, >=, <=, <>]
+  Transitions:
+
+State 166:
+  F -> ( E • ) , [*, /, +, -, >, <, =, >=, <=, <>]
+  Transitions:
+    ) -> State 116
+
+State 167:
+  X -> - R X • , [>, <, =, >=, <=, <>]
+  Transitions:
+
+State 168:
+  Y -> * F Y • , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 169:
+  Y -> / F Y • , [+, -, >, <, =, >=, <=, <>]
+  Transitions:
+
+State 170:
+  C -> E > E • , [)]
+  Transitions:
+
+State 171:
+  C -> E < E • , [)]
+  Transitions:
+
+State 172:
+  C -> E = E • , [)]
+  Transitions:
+
+State 173:
+  C -> E >= E • , [)]
+  Transitions:
+
+State 174:
+  C -> E <= E • , [)]
+  Transitions:
+
+State 175:
+  C -> E <> E • , [)]
+  Transitions:
+
+State 176:
+  X -> + R • X , [), >, <, =, >=, <=, <>]
+  X -> • + R X , [), >, <, =, >=, <=, <>]
+  X -> • - R X , [), >, <, =, >=, <=, <>]
+  X -> • ε , [), >, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 216
+    + -> State 118
+    - -> State 119
+
+State 177:
+  F -> ( • E ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 217
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 178:
+  X -> - R • X , [), >, <, =, >=, <=, <>]
+  X -> • + R X , [), >, <, =, >=, <=, <>]
+  X -> • - R X , [), >, <, =, >=, <=, <>]
+  X -> • ε , [), >, <, =, >=, <=, <>]
+  Transitions:
+    X -> State 218
+    + -> State 118
+    - -> State 119
+
+State 179:
+  Y -> * F • Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 219
+    * -> State 121
+    / -> State 122
+
+State 180:
+  Y -> / F • Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • * F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • / F Y , [+, -, ), >, <, =, >=, <=, <>]
+  Y -> • ε , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    Y -> State 220
+    * -> State 121
+    / -> State 122
+
+State 181:
+  C -> ( C ) • , [)]
+  Transitions:
+
+State 182:
+  F -> ( E ) • , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 183:
+  E -> R X • , [do]
+  Transitions:
+
+State 184:
+  X -> + • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    R -> State 221
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 185:
+  X -> - • R X , [do]
+  R -> • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    R -> State 222
+    F -> State 128
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 186:
+  R -> F Y • , [+, -, do]
+  Transitions:
+
+State 187:
+  Y -> * • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    F -> State 223
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 188:
+  Y -> / • F Y , [+, -, do]
+  F -> • ( E ) , [*, /, +, -, do]
+  F -> • id , [*, /, +, -, do]
+  F -> • int8 , [*, /, +, -, do]
+  F -> • int10 , [*, /, +, -, do]
+  F -> • int16 , [*, /, +, -, do]
+  Transitions:
+    F -> State 224
+    id -> State 129
+    int10 -> State 130
+    int8 -> State 131
+    int16 -> State 132
+    ( -> State 133
+
+State 189:
+  F -> ( E • ) , [*, /, +, -, do]
+  Transitions:
+    ) -> State 225
+
+State 190:
+  X -> + R X • , [;]
+  Transitions:
+
+State 191:
+  X -> - R X • , [;]
+  Transitions:
+
+State 192:
+  Y -> * F Y • , [+, -, ;]
+  Transitions:
+
+State 193:
+  Y -> / F Y • , [+, -, ;]
+  Transitions:
+
+State 194:
+  X -> + R • X , [)]
+  X -> • + R X , [)]
+  X -> • - R X , [)]
+  X -> • ε , [)]
+  Transitions:
+    X -> State 226
+    + -> State 146
+    - -> State 147
+
+State 195:
+  X -> - R • X , [)]
+  X -> • + R X , [)]
+  X -> • - R X , [)]
+  X -> • ε , [)]
+  Transitions:
+    X -> State 227
+    + -> State 146
+    - -> State 147
+
+State 196:
+  Y -> * F • Y , [+, -, )]
+  Y -> • * F Y , [+, -, )]
+  Y -> • / F Y , [+, -, )]
+  Y -> • ε , [+, -, )]
+  Transitions:
+    Y -> State 228
+    * -> State 149
+    / -> State 150
+
+State 197:
+  Y -> / F • Y , [+, -, )]
+  Y -> • * F Y , [+, -, )]
+  Y -> • / F Y , [+, -, )]
+  Y -> • ε , [+, -, )]
+  Transitions:
+    Y -> State 229
+    * -> State 149
+    / -> State 150
+
+State 198:
+  F -> ( E ) • , [*, /, +, -, )]
+  Transitions:
+
+State 199:
+  N -> else S • , [;]
+  Transitions:
+
+State 200:
+  S -> id = E • , [else, ;]
+  Transitions:
+
+State 201:
+  E -> R • X , [else, ;]
+  X -> • + R X , [else, ;]
+  X -> • - R X , [else, ;]
+  X -> • ε , [else, ;]
+  Transitions:
+    X -> State 230
+    + -> State 231
+    - -> State 232
+
+State 202:
+  R -> F • Y , [+, -, else, ;]
+  Y -> • * F Y , [+, -, else, ;]
+  Y -> • / F Y , [+, -, else, ;]
+  Y -> • ε , [+, -, else, ;]
+  Transitions:
+    Y -> State 233
+    * -> State 234
+    / -> State 235
+
+State 203:
+  F -> id • , [*, /, +, -, else, ;]
+  Transitions:
+
+State 204:
+  F -> int10 • , [*, /, +, -, else, ;]
+  Transitions:
+
+State 205:
+  F -> int8 • , [*, /, +, -, else, ;]
+  Transitions:
+
+State 206:
+  F -> int16 • , [*, /, +, -, else, ;]
+  Transitions:
+
+State 207:
+  F -> ( • E ) , [*, /, +, -, else, ;]
+  E -> • R X , [)]
+  R -> • F Y , [+, -, )]
+  F -> • ( E ) , [*, /, +, -, )]
+  F -> • id , [*, /, +, -, )]
+  F -> • int8 , [*, /, +, -, )]
+  F -> • int10 , [*, /, +, -, )]
+  F -> • int16 , [*, /, +, -, )]
+  Transitions:
+    E -> State 236
+    R -> State 79
+    F -> State 80
+    id -> State 81
+    int10 -> State 82
+    int8 -> State 83
+    int16 -> State 84
+    ( -> State 85
+
+State 208:
+  S -> if C then • S N , [else, ;]
+  S -> • id = E , [else, ;]
+  S -> • if C then S N , [else, ;]
+  S -> • while C do S , [else, ;]
+  S -> • begin L end , [else, ;]
+  Transitions:
+    S -> State 237
+    id -> State 87
+    if -> State 88
+    while -> State 89
+    begin -> State 90
+
+State 209:
+  S -> while C do • S , [else, ;]
+  S -> • id = E , [else, ;]
+  S -> • if C then S N , [else, ;]
+  S -> • while C do S , [else, ;]
+  S -> • begin L end , [else, ;]
+  Transitions:
+    S -> State 238
+    id -> State 87
+    if -> State 88
+    while -> State 89
+    begin -> State 90
+
+State 210:
+  S -> begin L end • , [else, ;]
+  Transitions:
+
+State 211:
+  X -> + R • X , [then]
+  X -> • + R X , [then]
+  X -> • - R X , [then]
+  X -> • ε , [then]
+  Transitions:
+    X -> State 239
+    + -> State 159
+    - -> State 160
+
+State 212:
+  X -> - R • X , [then]
+  X -> • + R X , [then]
+  X -> • - R X , [then]
+  X -> • ε , [then]
+  Transitions:
+    X -> State 240
+    + -> State 159
+    - -> State 160
+
+State 213:
+  Y -> * F • Y , [+, -, then]
+  Y -> • * F Y , [+, -, then]
+  Y -> • / F Y , [+, -, then]
+  Y -> • ε , [+, -, then]
+  Transitions:
+    Y -> State 241
+    * -> State 162
+    / -> State 163
+
+State 214:
+  Y -> / F • Y , [+, -, then]
+  Y -> • * F Y , [+, -, then]
+  Y -> • / F Y , [+, -, then]
+  Y -> • ε , [+, -, then]
+  Transitions:
+    Y -> State 242
+    * -> State 162
+    / -> State 163
+
+State 215:
+  F -> ( E ) • , [*, /, +, -, then]
+  Transitions:
+
+State 216:
+  X -> + R X • , [), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 217:
+  F -> ( E • ) , [*, /, +, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+    ) -> State 182
+
+State 218:
+  X -> - R X • , [), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 219:
+  Y -> * F Y • , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 220:
+  Y -> / F Y • , [+, -, ), >, <, =, >=, <=, <>]
+  Transitions:
+
+State 221:
+  X -> + R • X , [do]
+  X -> • + R X , [do]
+  X -> • - R X , [do]
+  X -> • ε , [do]
+  Transitions:
+    X -> State 243
+    + -> State 184
+    - -> State 185
+
+State 222:
+  X -> - R • X , [do]
+  X -> • + R X , [do]
+  X -> • - R X , [do]
+  X -> • ε , [do]
+  Transitions:
+    X -> State 244
+    + -> State 184
+    - -> State 185
+
+State 223:
+  Y -> * F • Y , [+, -, do]
+  Y -> • * F Y , [+, -, do]
+  Y -> • / F Y , [+, -, do]
+  Y -> • ε , [+, -, do]
+  Transitions:
+    Y -> State 245
+    * -> State 187
+    / -> State 188
+
+State 224:
+  Y -> / F • Y , [+, -, do]
+  Y -> • * F Y , [+, -, do]
+  Y -> • / F Y , [+, -, do]
+  Y -> • ε , [+, -, do]
+  Transitions:
+    Y -> State 246
+    * -> State 187
+    / -> State 188
+
+State 225:
+  F -> ( E ) • , [*, /, +, -, do]
+  Transitions:
+
+State 226:
+  X -> + R X • , [)]
+  Transitions:
+
+State 227:
+  X -> - R X • , [)]
+  Transitions:
+
+State 228:
+  Y -> * F Y • , [+, -, )]
+  Transitions:
+
+State 229:
+  Y -> / F Y • , [+, -, )]
+  Transitions:
+
+State 230:
+  E -> R X • , [else, ;]
+  Transitions:
+
+State 231:
+  X -> + • R X , [else, ;]
+  R -> • F Y , [+, -, else, ;]
+  F -> • ( E ) , [*, /, +, -, else, ;]
+  F -> • id , [*, /, +, -, else, ;]
+  F -> • int8 , [*, /, +, -, else, ;]
+  F -> • int10 , [*, /, +, -, else, ;]
+  F -> • int16 , [*, /, +, -, else, ;]
+  Transitions:
+    R -> State 247
+    F -> State 202
+    id -> State 203
+    int10 -> State 204
+    int8 -> State 205
+    int16 -> State 206
+    ( -> State 207
+
+State 232:
+  X -> - • R X , [else, ;]
+  R -> • F Y , [+, -, else, ;]
+  F -> • ( E ) , [*, /, +, -, else, ;]
+  F -> • id , [*, /, +, -, else, ;]
+  F -> • int8 , [*, /, +, -, else, ;]
+  F -> • int10 , [*, /, +, -, else, ;]
+  F -> • int16 , [*, /, +, -, else, ;]
+  Transitions:
+    R -> State 248
+    F -> State 202
+    id -> State 203
+    int10 -> State 204
+    int8 -> State 205
+    int16 -> State 206
+    ( -> State 207
+
+State 233:
+  R -> F Y • , [+, -, else, ;]
+  Transitions:
+
+State 234:
+  Y -> * • F Y , [+, -, else, ;]
+  F -> • ( E ) , [*, /, +, -, else, ;]
+  F -> • id , [*, /, +, -, else, ;]
+  F -> • int8 , [*, /, +, -, else, ;]
+  F -> • int10 , [*, /, +, -, else, ;]
+  F -> • int16 , [*, /, +, -, else, ;]
+  Transitions:
+    F -> State 249
+    id -> State 203
+    int10 -> State 204
+    int8 -> State 205
+    int16 -> State 206
+    ( -> State 207
+
+State 235:
+  Y -> / • F Y , [+, -, else, ;]
+  F -> • ( E ) , [*, /, +, -, else, ;]
+  F -> • id , [*, /, +, -, else, ;]
+  F -> • int8 , [*, /, +, -, else, ;]
+  F -> • int10 , [*, /, +, -, else, ;]
+  F -> • int16 , [*, /, +, -, else, ;]
+  Transitions:
+    F -> State 250
+    id -> State 203
+    int10 -> State 204
+    int8 -> State 205
+    int16 -> State 206
+    ( -> State 207
+
+State 236:
+  F -> ( E • ) , [*, /, +, -, else, ;]
+  Transitions:
+    ) -> State 251
+
+State 237:
+  S -> if C then S • N , [else, ;]
+  N -> • else S , [else, ;]
+  N -> • ε , [else, ;]
+  Transitions:
+    N -> State 252
+    else -> State 253
+
+State 238:
+  S -> while C do S • , [else, ;]
+  Transitions:
+
+State 239:
+  X -> + R X • , [then]
+  Transitions:
+
+State 240:
+  X -> - R X • , [then]
+  Transitions:
+
+State 241:
+  Y -> * F Y • , [+, -, then]
+  Transitions:
+
+State 242:
+  Y -> / F Y • , [+, -, then]
+  Transitions:
+
+State 243:
+  X -> + R X • , [do]
+  Transitions:
+
+State 244:
+  X -> - R X • , [do]
+  Transitions:
+
+State 245:
+  Y -> * F Y • , [+, -, do]
+  Transitions:
+
+State 246:
+  Y -> / F Y • , [+, -, do]
+  Transitions:
+
+State 247:
+  X -> + R • X , [else, ;]
+  X -> • + R X , [else, ;]
+  X -> • - R X , [else, ;]
+  X -> • ε , [else, ;]
+  Transitions:
+    X -> State 254
+    + -> State 231
+    - -> State 232
+
+State 248:
+  X -> - R • X , [else, ;]
+  X -> • + R X , [else, ;]
+  X -> • - R X , [else, ;]
+  X -> • ε , [else, ;]
+  Transitions:
+    X -> State 255
+    + -> State 231
+    - -> State 232
+
+State 249:
+  Y -> * F • Y , [+, -, else, ;]
+  Y -> • * F Y , [+, -, else, ;]
+  Y -> • / F Y , [+, -, else, ;]
+  Y -> • ε , [+, -, else, ;]
+  Transitions:
+    Y -> State 256
+    * -> State 234
+    / -> State 235
+
+State 250:
+  Y -> / F • Y , [+, -, else, ;]
+  Y -> • * F Y , [+, -, else, ;]
+  Y -> • / F Y , [+, -, else, ;]
+  Y -> • ε , [+, -, else, ;]
+  Transitions:
+    Y -> State 257
+    * -> State 234
+    / -> State 235
+
+State 251:
+  F -> ( E ) • , [*, /, +, -, else, ;]
+  Transitions:
+
+State 252:
+  S -> if C then S N • , [else, ;]
+  Transitions:
+
+State 253:
+  N -> else • S , [else, ;]
+  S -> • id = E , [else, ;]
+  S -> • if C then S N , [else, ;]
+  S -> • while C do S , [else, ;]
+  S -> • begin L end , [else, ;]
+  Transitions:
+    S -> State 258
+    id -> State 87
+    if -> State 88
+    while -> State 89
+    begin -> State 90
+
+State 254:
+  X -> + R X • , [else, ;]
+  Transitions:
+
+State 255:
+  X -> - R X • , [else, ;]
+  Transitions:
+
+State 256:
+  Y -> * F Y • , [+, -, else, ;]
+  Transitions:
+
+State 257:
+  Y -> / F Y • , [+, -, else, ;]
+  Transitions:
+
+State 258:
+  N -> else S • , [else, ;]
+  Transitions:
+
+State 33 action for semicolon: reduce by production 24 (Y -> ε)
+State 33 items:
+  R -> F • Y , [+, -, ;]
+  Y -> • * F Y , [+, -, ;]
+  Y -> • / F Y , [+, -, ;]
+  Y -> • ε , [+, -, ;]
+Parsing input...
+IDN        x
+EQ         - 
+DEC        1
+SEMI       - 
+EOF        - 

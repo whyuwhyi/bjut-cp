@@ -2,7 +2,6 @@
  * @file lr_common.c
  * @brief Common LR parser utilities implementation
  */
-
 #include "lr_common.h"
 #include "lexer/lexer.h"
 #include "utils.h"
@@ -17,13 +16,11 @@ int get_terminal_index(Grammar *grammar, TokenType token) {
   if (!grammar) {
     return -1;
   }
-
   for (int i = 0; i < grammar->terminals_count; i++) {
     if (grammar->symbols[grammar->terminal_indices[i]].token == token) {
       return i;
     }
   }
-
   return -1;
 }
 
@@ -34,13 +31,11 @@ int get_nonterminal_index(Grammar *grammar, int nonterminal_id) {
   if (!grammar) {
     return -1;
   }
-
   for (int i = 0; i < grammar->nonterminals_count; i++) {
     if (grammar->nonterminal_indices[i] == nonterminal_id) {
       return i;
     }
   }
-
   return -1;
 }
 
@@ -51,7 +46,6 @@ int get_symbol_id_from_index(Grammar *grammar, bool is_terminal, int index) {
   if (!grammar) {
     return -1;
   }
-
   if (is_terminal) {
     if (index >= 0 && index < grammar->terminals_count) {
       return grammar->terminal_indices[index];
@@ -61,7 +55,6 @@ int get_symbol_id_from_index(Grammar *grammar, bool is_terminal, int index) {
       return grammar->nonterminal_indices[index];
     }
   }
-
   return -1;
 }
 
@@ -164,7 +157,6 @@ static const Token *get_current_token(LRParserData *data) {
   if (!data || !data->lexer) {
     return NULL;
   }
-
   return lexer_get_token(data->lexer, data->current_token);
 }
 
@@ -175,7 +167,6 @@ static const Token *next_token(LRParserData *data) {
   if (!data) {
     return NULL;
   }
-
   data->current_token++;
   return get_current_token(data);
 }
@@ -191,7 +182,6 @@ static bool push_stacks(LRParserData *data, int state, SyntaxTreeNode *node) {
   /* Check if stack needs to be resized */
   if (data->stack_top + 1 >= data->stack_capacity) {
     int new_capacity = data->stack_capacity * 2;
-
     int *new_state_stack =
         (int *)safe_realloc(data->state_stack, new_capacity * sizeof(int));
     if (!new_state_stack) {
@@ -205,8 +195,8 @@ static bool push_stacks(LRParserData *data, int state, SyntaxTreeNode *node) {
       return false;
     }
     data->node_stack = new_node_stack;
-
     data->stack_capacity = new_capacity;
+
     DEBUG_PRINT("Resized LR parser stacks to capacity %d", new_capacity);
   }
 
@@ -229,6 +219,7 @@ static bool pop_stacks(LRParserData *data, int count) {
   }
 
   data->stack_top -= count;
+
   DEBUG_PRINT("Popped %d items from stack, new top at position %d", count,
               data->stack_top);
   return true;
@@ -240,10 +231,6 @@ static bool pop_stacks(LRParserData *data, int count) {
 SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
   if (!parser || !data || !lexer) {
     return NULL;
-  }
-
-  if (lexer->nr_token < CONFIG_MAX_TOKENS) {
-    lexer->tokens[lexer->nr_token++].type = TK_EOF;
   }
 
   /* Reset parser data */
@@ -262,18 +249,41 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     return NULL;
   }
 
+  /* Find EOF token index */
+  int eof_idx = -1;
+  for (int t = 0; t < parser->grammar->terminals_count; t++) {
+    if (parser->grammar->symbols[parser->grammar->terminal_indices[t]].token ==
+        TK_EOF) {
+      eof_idx = t;
+      break;
+    }
+  }
+  if (eof_idx < 0) {
+    data->has_error = true;
+    snprintf(data->error_message, sizeof(data->error_message),
+             "EOF token not found in grammar");
+    return NULL;
+  }
+
   /* Main parsing loop */
   bool accepted = false;
+  SyntaxTreeNode *program_node = NULL; // Store the actual program node
+
   while (!accepted && !data->has_error) {
     int current_state = data->state_stack[data->stack_top];
 
     /* Get action for current state and input symbol */
     int terminal_idx = get_terminal_index(parser->grammar, token->type);
     if (terminal_idx < 0) {
-      data->has_error = true;
-      snprintf(data->error_message, sizeof(data->error_message),
-               "Unknown token type: %d", token->type);
-      break;
+      /* If current token is not in grammar, check if it's EOF */
+      if (token->type == TK_EOF) {
+        terminal_idx = eof_idx;
+      } else {
+        data->has_error = true;
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Unknown token type: %d", token->type);
+        break;
+      }
     }
 
     Action action =
@@ -282,55 +292,91 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
     /* Handle action */
     switch (action.type) {
     case ACTION_SHIFT: {
-      if (token->type == TK_EOF) {
-        /* EOF通常不应该被shift，但这取决于你的文法 */
-        DEBUG_PRINT("WARNING: Trying to shift on EOF in state %d",
-                    current_state);
-
-        /* 检查该状态的EOF动作 */
-        Action eof_action =
-            action_table_get_action(data->table, current_state, terminal_idx);
-        if (eof_action.type != ACTION_SHIFT) {
-          /* 如果这个状态对EOF的动作不是shift，说明有问题 */
-          data->has_error = true;
-          snprintf(data->error_message, sizeof(data->error_message),
-                   "Unexpected shift on EOF. This should be an accept.");
-          break;
-        }
-
-        /* 这种情况可能发生在增广文法中，我们需要shift EOF然后在下一个状态接受
-         */
-        DEBUG_PRINT("Shifting EOF token as part of augmented grammar");
-      }
-
       /* Create node for the token */
       const char *symbol_name =
           parser->grammar
               ->symbols[parser->grammar->terminal_indices[terminal_idx]]
               .name;
-      SyntaxTreeNode *node = syntax_tree_create_terminal(*token, symbol_name);
-      if (!node) {
-        data->has_error = true;
-        snprintf(data->error_message, sizeof(data->error_message),
-                 "Failed to create syntax tree node for token");
-        break;
-      }
 
-      /* Push new state and node onto stacks */
-      if (!push_stacks(data, action.value, node)) {
-        data->has_error = true;
-        snprintf(data->error_message, sizeof(data->error_message),
-                 "Failed to push onto parser stacks");
-        break;
+      /* Don't create a node for EOF token - fix for the EOF issue */
+      if (token->type == TK_EOF) {
+        /* Just push state without creating a node */
+        if (!push_stacks(data, action.value, NULL)) {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Failed to push onto parser stacks");
+          break;
+        }
+      } else {
+        SyntaxTreeNode *node = syntax_tree_create_terminal(*token, symbol_name);
+        if (!node) {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Failed to create syntax tree node for token");
+          break;
+        }
+
+        /* Push new state and node onto stacks */
+        if (!push_stacks(data, action.value, node)) {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Failed to push onto parser stacks");
+          break;
+        }
       }
 
       /* Move to next token */
       token = next_token(data);
-      if (!token && !accepted) {
-        data->has_error = true;
-        snprintf(data->error_message, sizeof(data->error_message),
-                 "Unexpected end of input");
-        break;
+
+      /* If next token is NULL, check if we can accept EOF */
+      if (!token) {
+        int new_state = data->state_stack[data->stack_top];
+        Action eof_action =
+            action_table_get_action(data->table, new_state, eof_idx);
+
+        if (eof_action.type == ACTION_ACCEPT) {
+          /* Set program node as root (excluding EOF) */
+          if (data->stack_top >= 1) {
+            SyntaxTreeNode *root_node = NULL;
+
+            /* Find the actual program node, not the EOF */
+            for (int i = data->stack_top; i >= 0; i--) {
+              if (data->node_stack[i] && data->node_stack[i]->type == NT_P) {
+                program_node = data->node_stack[i];
+                break;
+              }
+            }
+
+            if (program_node) {
+              syntax_tree_set_root(data->syntax_tree, program_node);
+              accepted = true;
+              DEBUG_PRINT("Accepted input at EOF with program node (type: %d)",
+                          program_node->type);
+              break;
+            } else if ((root_node = data->node_stack[data->stack_top - 1])) {
+              /* If no P node, use the node before EOF */
+              syntax_tree_set_root(data->syntax_tree, root_node);
+              accepted = true;
+              DEBUG_PRINT("Accepted input at EOF with root node type: %d",
+                          root_node->type);
+              break;
+            }
+          }
+        } else if (eof_action.type == ACTION_REDUCE) {
+          /* If action for EOF is reduction, create an artificial EOF token */
+          Token eof_token;
+          eof_token.type = TK_EOF;
+          eof_token.line = 0;
+          eof_token.column = 0;
+          token = &eof_token;
+          DEBUG_PRINT("Created artificial EOF token to continue parsing");
+          continue;
+        } else {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Unexpected end of input");
+          break;
+        }
       }
 
       DEBUG_PRINT("Shifted to state %d", action.value);
@@ -356,15 +402,36 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
         break;
       }
 
-      /* Add children in reverse order (to maintain correct order in tree) */
+      /* Store program node if this is a program (P) node */
+      if (prod->lhs == NT_P) {
+        program_node = node;
+      }
+
+      /* Determine the RHS length of the reduction production */
       int rhs_length =
           (prod->rhs_length == 1 && prod->rhs[0].type == SYMBOL_EPSILON)
-              ? 0
+              ? 0 /* If it's an ε production, actual length is 0 */
               : prod->rhs_length;
+
+      /* Add children in reverse order (to maintain correct order in tree) */
       for (int i = rhs_length - 1; i >= 0; i--) {
-        syntax_tree_add_child(
-            node, data->node_stack[data->stack_top - rhs_length + 1 + i]);
+        if (data->stack_top - rhs_length + 1 + i < 0) {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Stack underflow during reduction");
+          break;
+        }
+
+        /* Skip NULL nodes (EOF) when adding children */
+        SyntaxTreeNode *child =
+            data->node_stack[data->stack_top - rhs_length + 1 + i];
+        if (child) {
+          syntax_tree_add_child(node, child);
+        }
       }
+
+      if (data->has_error)
+        break;
 
       /* Pop the RHS from the stack */
       if (!pop_stacks(data, rhs_length)) {
@@ -399,14 +466,12 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
         snprintf(data->error_message, sizeof(data->error_message),
                  "Invalid goto state for non-terminal %d (%s) from state %d",
                  prod->lhs, nt_name, current_state);
-
         /* Debug output for error diagnosis */
         DEBUG_PRINT("GOTO Error Details:");
         DEBUG_PRINT("  Non-terminal: %s (ID: %d, Index: %d)", nt_name,
                     prod->lhs, nt_idx);
         DEBUG_PRINT("  Current state: %d", current_state);
         DEBUG_PRINT("  Production: %s", prod->display_str);
-
         break;
       }
 
@@ -423,24 +488,62 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
 
       DEBUG_PRINT("Reduced by production %d (%s) to state %d", production_id,
                   prod->display_str, new_state);
+
+      /* If we reduced to start symbol, check if we can accept EOF */
+      if (prod->lhs == parser->grammar->start_symbol || prod->lhs == NT_P ||
+          (nt_idx == parser->grammar->nonterminals_count - 1)) {
+
+        Action eof_action =
+            action_table_get_action(data->table, new_state, eof_idx);
+        if (eof_action.type == ACTION_ACCEPT && token->type == TK_EOF) {
+          /* Set syntax tree root to program node */
+          syntax_tree_set_root(data->syntax_tree, node);
+          accepted = true;
+          DEBUG_PRINT("Accepted input after reducing to start symbol");
+          break;
+        }
+      }
       break;
     }
 
     case ACTION_ACCEPT:
       /* Set the root of the syntax tree */
-      if (data->stack_top >= 1) {
-        /* 检查栈顶元素是否为原始开始符号 */
-        SyntaxTreeNode *root_node = data->node_stack[data->stack_top];
-        if (root_node) {
-          /* 设置语法树根节点 */
-          syntax_tree_set_root(data->syntax_tree, root_node);
+      if (data->stack_top >= 0) {
+        /* Look for program node first */
+        if (program_node) {
+          syntax_tree_set_root(data->syntax_tree, program_node);
           accepted = true;
-          DEBUG_PRINT("Accepted input with root node type: %d",
-                      root_node->type);
-        } else {
-          data->has_error = true;
-          snprintf(data->error_message, sizeof(data->error_message),
-                   "Invalid stack state at accept action: NULL node at top");
+          DEBUG_PRINT("Accepted input with program node (type: %d)",
+                      program_node->type);
+        }
+        /* Otherwise use the stack top node if it's not EOF */
+        else {
+          SyntaxTreeNode *root_node = data->node_stack[data->stack_top];
+          /* Skip using NULL (EOF) nodes as root */
+          if (root_node) {
+            syntax_tree_set_root(data->syntax_tree, root_node);
+            accepted = true;
+            DEBUG_PRINT("Accepted input with root node type: %d",
+                        root_node->type);
+          } else if (data->stack_top > 0) {
+            /* Try the node below EOF */
+            root_node = data->node_stack[data->stack_top - 1];
+            if (root_node) {
+              syntax_tree_set_root(data->syntax_tree, root_node);
+              accepted = true;
+              DEBUG_PRINT("Accepted input with root node below EOF, type: %d",
+                          root_node->type);
+            } else {
+              data->has_error = true;
+              snprintf(
+                  data->error_message, sizeof(data->error_message),
+                  "Invalid stack state at accept action: NULL nodes at top");
+            }
+          } else {
+            data->has_error = true;
+            snprintf(data->error_message, sizeof(data->error_message),
+                     "Invalid stack state at accept action: NULL node at top");
+          }
         }
       } else {
         data->has_error = true;
@@ -451,13 +554,53 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
 
     case ACTION_ERROR:
     default:
-      /* Error */
+      /* Before error, check if we can handle EOF */
+      if (token->type != TK_EOF) {
+        /* Try to handle next token */
+        DEBUG_PRINT("Skipping token %s due to error",
+                    token_type_to_string(token->type));
+        token = next_token(data);
+
+        /* If we encounter EOF, check if current state can accept */
+        if (!token || token->type == TK_EOF) {
+          current_state = data->state_stack[data->stack_top];
+          Action eof_action =
+              action_table_get_action(data->table, current_state, eof_idx);
+
+          if (eof_action.type == ACTION_ACCEPT) {
+            /* Set syntax tree root to program node or top node */
+            if (program_node) {
+              syntax_tree_set_root(data->syntax_tree, program_node);
+              accepted = true;
+              DEBUG_PRINT("Accepted input at EOF after error recovery with "
+                          "program node");
+              break;
+            } else if (data->stack_top >= 0) {
+              SyntaxTreeNode *root_node = data->node_stack[data->stack_top];
+              if (root_node) {
+                syntax_tree_set_root(data->syntax_tree, root_node);
+                accepted = true;
+                DEBUG_PRINT("Accepted input at EOF after error recovery");
+                break;
+              }
+            }
+          }
+        }
+
+        /* If we can't accept, continue processing other tokens */
+        if (token) {
+          continue;
+        }
+      }
+
+      /* Error handling */
       data->has_error = true;
-      /* Try to provide a helpful error message */
+
+      /* Try to provide useful error message */
       char token_str[128];
       token_to_string(token, token_str, sizeof(token_str));
 
-      /* 检查是否有可用的语法动作 */
+      /* Check if there are available grammar actions */
       bool has_actions = false;
       for (int t = 0; t < parser->grammar->terminals_count; t++) {
         Action a = action_table_get_action(data->table, current_state, t);
@@ -468,19 +611,92 @@ SyntaxTree *lr_parser_parse(Parser *parser, LRParserData *data, Lexer *lexer) {
       }
 
       if (has_actions) {
-        /* 有其他可用的动作，这是一个非期望的标记 */
+        /* Other actions available, this is an unexpected token */
         snprintf(data->error_message, sizeof(data->error_message),
                  "Syntax error at token '%s' (type %s) in state %d. Unexpected "
                  "token.",
                  token_str, token_type_to_string(token->type), current_state);
       } else {
-        /* 没有可用的动作，这可能是一个无效的状态 */
+        /* No actions available, could be an invalid state */
         snprintf(data->error_message, sizeof(data->error_message),
                  "Syntax error at token '%s' (type %s) in state %d. Invalid "
                  "parser state.",
                  token_str, token_type_to_string(token->type), current_state);
       }
       break;
+    }
+  }
+
+  /* If we encounter EOF but haven't explicitly accepted, try special handling
+   */
+  if (!accepted && !data->has_error && (!token || token->type == TK_EOF)) {
+    int current_state = data->state_stack[data->stack_top];
+
+    /* Check if current state can accept EOF */
+    Action eof_action =
+        action_table_get_action(data->table, current_state, eof_idx);
+
+    if (eof_action.type == ACTION_ACCEPT) {
+      /* Set program node as root if available */
+      if (program_node) {
+        syntax_tree_set_root(data->syntax_tree, program_node);
+        accepted = true;
+        DEBUG_PRINT(
+            "Accepted input at EOF with program node (special handling)");
+      }
+      /* Otherwise, set stack top node as root if not NULL */
+      else if (data->stack_top >= 0) {
+        SyntaxTreeNode *root_node = data->node_stack[data->stack_top];
+        if (root_node) {
+          syntax_tree_set_root(data->syntax_tree, root_node);
+          accepted = true;
+          DEBUG_PRINT("Accepted input at EOF with special handling");
+        } else if (data->stack_top > 0) {
+          /* Try node below EOF */
+          root_node = data->node_stack[data->stack_top - 1];
+          if (root_node) {
+            syntax_tree_set_root(data->syntax_tree, root_node);
+            accepted = true;
+            DEBUG_PRINT("Accepted input at EOF with node below EOF");
+          }
+        }
+      }
+    } else if (eof_action.type == ACTION_REDUCE) {
+      /* If action for EOF is reduce, log it but don't execute to avoid infinite
+       * loop */
+      DEBUG_PRINT("Found REDUCE action for EOF in state %d, production %d",
+                  current_state, eof_action.value);
+
+      data->has_error = true;
+      snprintf(data->error_message, sizeof(data->error_message),
+               "Parsing incomplete: expected more input after the last token");
+    } else {
+      /* No explicit accept action, but we've reached EOF, try special handling
+       */
+      /* Check if stack top is start symbol or program */
+      if (program_node) {
+        syntax_tree_set_root(data->syntax_tree, program_node);
+        accepted = true;
+        DEBUG_PRINT("Forced accept at EOF with program node");
+      } else if (data->stack_top >= 0) {
+        SyntaxTreeNode *top_node = data->node_stack[data->stack_top];
+
+        if (top_node && (top_node->type == parser->grammar->start_symbol ||
+                         top_node->type == NT_P)) {
+          /* Stack top is start symbol or program symbol, force accept */
+          syntax_tree_set_root(data->syntax_tree, top_node);
+          accepted = true;
+          DEBUG_PRINT("Forced accept at EOF with start symbol on stack");
+        } else {
+          data->has_error = true;
+          snprintf(data->error_message, sizeof(data->error_message),
+                   "Unexpected end of input, incomplete parse");
+        }
+      } else {
+        data->has_error = true;
+        snprintf(data->error_message, sizeof(data->error_message),
+                 "Unexpected end of input, parser stack empty");
+      }
     }
   }
 

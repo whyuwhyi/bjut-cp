@@ -40,9 +40,6 @@ bool lr0_build_automaton(Parser *parser, LR0ParserData *data) {
 /**
  * @brief Build the LR(0) parsing table
  */
-/**
- * @brief Build the LR(0) parsing table
- */
 bool lr0_build_parsing_table(Parser *parser, LR0ParserData *data) {
   if (!parser || !data) {
     return false;
