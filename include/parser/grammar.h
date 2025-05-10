@@ -7,7 +7,7 @@
 #define GRAMMAR_H
 
 #include "common.h"
-#include "lexer_analyzer/token.h"
+#include "lexer/token.h"
 #include <stdbool.h>
 #include <stdlib.h>
 

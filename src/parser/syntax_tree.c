@@ -4,7 +4,7 @@
  */
 
 #include "parser/syntax_tree.h"
-#include "lexer_analyzer/token.h"
+#include "lexer/token.h"
 #include "parser_common.h"
 #include "utils.h"
 #include <stdio.h>
@@ -246,59 +246,68 @@ SyntaxTreeNode *syntax_tree_get_root(const SyntaxTree *tree) {
 }
 
 /**
- * @brief Helper function to print a syntax tree node with indentation
+ * @brief Internal recursive function: print a single node and its subtree
+ * @param node     The node to print
+ * @param prefix   Current prefix string (passed from parent node)
+ * @param is_last  Whether this node is the last child of its parent
  */
-static void print_syntax_tree_node(const SyntaxTreeNode *node, int indent) {
-  if (!node) {
+static void print_tree(const SyntaxTreeNode *node, const char *prefix,
+                       bool is_last) {
+  if (!node)
     return;
+  // Print prefix
+  printf("%s", prefix);
+  // Print branch symbol
+  if (is_last) {
+    printf("└─");
+  } else {
+    printf("├─");
   }
-
-  /* Print indentation */
-  for (int i = 0; i < indent; i++) {
-    printf("  ");
-  }
-
-  /* Print node information */
+  // Print the node's information
   switch (node->type) {
   case NODE_NONTERMINAL:
     printf("%s", node->symbol_name);
     if (node->production_id >= 0) {
-      printf(" (Production: %d)", node->production_id);
+      printf(" (Prod:%d)", node->production_id);
     }
-    printf("\n");
     break;
-
   case NODE_TERMINAL: {
     char token_str[128];
     token_to_string(&node->token, token_str, sizeof(token_str));
-    printf("%s [%s]\n", node->symbol_name, token_str);
-  } break;
-
-  case NODE_EPSILON:
-    printf("%s\n", node->symbol_name);
+    printf("%s [%s]", node->symbol_name, token_str);
     break;
   }
-
-  /* Print all children with increased indentation */
-  for (int i = 0; i < node->children_count; i++) {
-    print_syntax_tree_node(node->children[i], indent + 1);
+  case NODE_EPSILON:
+    printf("%s", node->symbol_name);
+    break;
+  }
+  printf("\n");
+  // Prepare new prefix for child nodes
+  int n = node->children_count;
+  for (int i = 0; i < n; i++) {
+    // If current node is not the last child, add "│  " to prefix,
+    // otherwise add spaces "   "
+    char child_prefix[1024];
+    snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix,
+             is_last ? "   " : "│  ");
+    // Recursively print the i-th child, passing whether it's the last one
+    print_tree(node->children[i], child_prefix, i == n - 1);
   }
 }
 
 /**
- * @brief Print the syntax tree to stdout
+ * @brief Print the entire syntax tree
  */
 void syntax_tree_print(const SyntaxTree *tree) {
   if (!tree) {
     printf("Syntax tree is NULL\n");
     return;
   }
-
   if (!tree->root) {
     printf("Syntax tree is empty\n");
     return;
   }
-
   printf("Syntax Tree:\n");
-  print_syntax_tree_node(tree->root, 0);
+  // Root node is treated as "last" (to avoid extra vertical lines after it)
+  print_tree(tree->root, "", true);
 }

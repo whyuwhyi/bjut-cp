@@ -6,7 +6,7 @@
 #include "parser/parser.h"
 #include "parser/grammar.h"
 #include "parser_common.h"
-#include "recursive_descent/rd_parser.h"
+#include "rd/rd_parser.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>

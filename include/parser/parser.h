@@ -8,7 +8,7 @@
 
 #include "common.h"
 #include "grammar.h"
-#include "lexer_analyzer/lexer.h"
+#include "lexer/lexer.h"
 #include "syntax_tree.h"
 #include <stdbool.h>
 

@@ -3,7 +3,7 @@
  * @brief Lexical analyzer driver program
  */
 #include "common.h"
-#include "lexer_analyzer/lexer.h"
+#include "lexer/lexer.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -152,6 +152,7 @@ void generate_sample(FILE *out) {
   }
   append(&src, ";\n");
   append(&exp, "SEMI       -\n");
+  append(&exp, "EOF        -\n");
 
   fprintf(out, "sample:\n%s", src);
   fprintf(out, "expected output:\n%s\n", exp);

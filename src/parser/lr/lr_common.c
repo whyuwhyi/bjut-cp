@@ -4,7 +4,7 @@
  */
 
 #include "lr_common.h"
-#include "lexer_analyzer/lexer.h"
+#include "lexer/lexer.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>

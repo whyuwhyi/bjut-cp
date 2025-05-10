@@ -6,7 +6,7 @@
 #include "codegen/sdt_codegen.h"
 #include "codegen/tac.h"
 #include "common.h"
-#include "lexer_analyzer/lexer.h"
+#include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "parser/syntax_tree.h"
 #include <getopt.h>

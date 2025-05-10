@@ -7,7 +7,7 @@
 #define SDT_CODEGEN_H
 
 #include "codegen/tac.h"
-#include "lexer_analyzer/lexer.h"
+#include "lexer/lexer.h"
 #include "parser/syntax_tree.h"
 #include <stdbool.h>
 
