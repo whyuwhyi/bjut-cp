@@ -581,9 +581,11 @@ bool grammar_init(Grammar *grammar) {
   int y_nt = grammar_add_nonterminal(grammar, "Y"); /* Term Tail */
   int f_nt = grammar_add_nonterminal(grammar, "F"); /* Factor */
   int t_nt = grammar_add_nonterminal(grammar, "T"); /* Program Tail */
+  int o_nt = grammar_add_nonterminal(grammar,
+                                     "O"); /* Operator followed by expression */
   if (p_nt != NT_P || l_nt != NT_L || s_nt != NT_S || n_nt != NT_N ||
       c_nt != NT_C || e_nt != NT_E || x_nt != NT_X || r_nt != NT_R ||
-      y_nt != NT_Y || f_nt != NT_F || t_nt != NT_T) {
+      y_nt != NT_Y || f_nt != NT_F || t_nt != NT_T || o_nt != NT_O) {
     DEBUG_PRINT("Failed to add non-terminal symbols");
     return false;
   }
@@ -682,54 +684,14 @@ bool grammar_init(Grammar *grammar) {
   grammar_add_production(grammar, NT_N, rhs, 2);
   /* N → ε */
   grammar_add_production(grammar, NT_N, NULL, 0);
-  /* C → E > E */
+
+  /* C → E O */
   rhs[0].type = SYMBOL_NONTERMINAL;
   rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_GT;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
-  /* C → E < E */
-  rhs[0].type = SYMBOL_NONTERMINAL;
-  rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_LT;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
-  /* C → E = E */
-  rhs[0].type = SYMBOL_NONTERMINAL;
-  rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_EQ;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
-  /* C → E >= E */
-  rhs[0].type = SYMBOL_NONTERMINAL;
-  rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_GE;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
-  /* C → E <= E */
-  rhs[0].type = SYMBOL_NONTERMINAL;
-  rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_LE;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
-  /* C → E <> E */
-  rhs[0].type = SYMBOL_NONTERMINAL;
-  rhs[0].nonterminal = NT_E;
-  rhs[1].type = SYMBOL_TERMINAL;
-  rhs[1].token = TK_NEQ;
-  rhs[2].type = SYMBOL_NONTERMINAL;
-  rhs[2].nonterminal = NT_E;
-  grammar_add_production(grammar, NT_C, rhs, 3);
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_O;
+  grammar_add_production(grammar, NT_C, rhs, 2);
+
   /* C → ( C ) */
   rhs[0].type = SYMBOL_TERMINAL;
   rhs[0].token = TK_SLP;
@@ -738,6 +700,49 @@ bool grammar_init(Grammar *grammar) {
   rhs[2].type = SYMBOL_TERMINAL;
   rhs[2].token = TK_SRP;
   grammar_add_production(grammar, NT_C, rhs, 3);
+
+  /* O → > E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_GT;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
+  /* O → < E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_LT;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
+  /* O → = E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_EQ;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
+  /* O → >= E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_GE;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
+  /* O → <= E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_LE;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
+  /* O → <> E */
+  rhs[0].type = SYMBOL_TERMINAL;
+  rhs[0].token = TK_NEQ;
+  rhs[1].type = SYMBOL_NONTERMINAL;
+  rhs[1].nonterminal = NT_E;
+  grammar_add_production(grammar, NT_O, rhs, 2);
+
   /* E → R X */
   rhs[0].type = SYMBOL_NONTERMINAL;
   rhs[0].nonterminal = NT_R;

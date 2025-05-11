@@ -23,7 +23,7 @@
 /**
  * @brief Rule structure for lexical analysis
  */
-typedef struct {
+typedef struct Rule {
   const char *regex;    /**< Regular expression pattern */
   TokenType token_type; /**< Token type for this pattern */
 } Rule;
@@ -31,7 +31,7 @@ typedef struct {
 /**
  * @brief Lexer structure for lexical analysis
  */
-typedef struct {
+typedef struct Lexer {
 #ifdef CONFIG_LEXER_REGEX
   Rule rules[NR_REGEX]; /**< Regular expression rules */
   regex_t re[NR_REGEX]; /**< Compiled regular expressions */
@@ -127,36 +127,11 @@ const Token *lexer_get_token(const Lexer *lexer, int index);
 int lexer_token_count(const Lexer *lexer);
 
 /**
- * @brief Report a lexical error with highlighting
- *
- * @param lexer The lexer
- * @param line Line number where error occurred
- * @param column Column where error occurred
- * @param length Length of the erroneous text
- * @param format Format string for error message
- * @param ... Additional arguments for format
- */
-void lexer_report_error(Lexer *lexer, int line, int column, int length,
-                        const char *format, ...);
-
-/**
  * @brief Check if lexer has encountered any errors
  *
  * @param lexer The lexer
  * @return true if errors were encountered, false otherwise
  */
 bool lexer_has_errors(const Lexer *lexer);
-
-/**
- * @brief Extract a line from the input string
- *
- * @param input Input string
- * @param line Line number (1-based)
- * @param buffer Buffer to store the line
- * @param buffer_size Size of the buffer
- * @return int Length of the extracted line or -1 if error
- */
-int extract_line_from_input(const char *input, int line, char *buffer,
-                            int buffer_size);
 
 #endif /* LEXER_H */

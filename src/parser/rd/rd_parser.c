@@ -3,7 +3,7 @@
  * @brief Recursive descent parser implementation
  */
 #include "rd_parser.h"
-#include "../parser_common.h"
+#include "../production_tracker.h"
 #include "parser/grammar.h"
 #include "parser/syntax_tree.h"
 #include "utils.h"
@@ -182,6 +182,7 @@ static SyntaxTreeNode *parse_L(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_S(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data);
+static SyntaxTreeNode *parse_O(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_E(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_X(Parser *parser, RDParserData *data);
 static SyntaxTreeNode *parse_R(Parser *parser, RDParserData *data);
@@ -552,122 +553,184 @@ static SyntaxTreeNode *parse_N(Parser *parser, RDParserData *data) {
  * First scans for top-level relational operators, prioritizing C → E relop E
  * If not found, then tries to parse a nested condition with C → '(' C ')'
  */
+/**
+ * @brief Parse non-terminal C (Condition)
+ */
 static SyntaxTreeNode *parse_C(Parser *parser, RDParserData *data) {
-  if (!parser || !data)
+  if (!parser || !data) {
     return NULL;
-
-  // 1) Save current state for one-step rollback if needed
-  int save_tok = data->current_token_index;
-  int save_trk = production_tracker_get_size(parser->production_tracker);
-
-  // 2) Scan input to find the outermost relational operator (skipping all
-  // parenthesized content)
-  ProductionID relop_pid = PROD_UNVALID;
-  int scan_idx = save_tok, depth = 0;
-  const Token *tkn;
-
-  while ((tkn = lexer_get_token(data->lexer, scan_idx))) {
-    if (tkn->type == TK_SLP) {
-      depth++;
-    } else if (tkn->type == TK_SRP) {
-      depth--;
-    } else if (depth == 0) {
-      switch (tkn->type) {
-      case TK_GT:
-        relop_pid = PROD_C_GT;
-        break;
-      case TK_LT:
-        relop_pid = PROD_C_LT;
-        break;
-      case TK_EQ:
-        relop_pid = PROD_C_EQ;
-        break;
-      case TK_GE:
-        relop_pid = PROD_C_GE;
-        break;
-      case TK_LE:
-        relop_pid = PROD_C_LE;
-        break;
-      case TK_NEQ:
-        relop_pid = PROD_C_NE;
-        break;
-      default:
-        break;
-      }
-      if (relop_pid != PROD_UNVALID)
-        break;
-    }
-    scan_idx++;
+  }
+  /* Create node for non-terminal C */
+  SyntaxTreeNode *node = create_nt_node(NT_C, "C", data);
+  if (!node) {
+    return NULL;
   }
 
-  // 3) If a top-level relational operator was found, follow C → E relop E rule
-  if (relop_pid != PROD_UNVALID) {
-    SyntaxTreeNode *node = create_nt_node(NT_C, "C", data);
-    if (!node)
-      goto PARSE_PAREN;
+  /* Save current state for potential backtracking */
+  int save_token_index = data->current_token_index;
+  int tracker_save_idx = -1;
+  if (parser->production_tracker) {
+    tracker_save_idx = production_tracker_get_size(parser->production_tracker);
+  }
 
-    // -- Record this production at the beginning --
-    set_production(node, relop_pid, parser->production_tracker);
+  const Token *token = get_current_token(data);
+  if (!token) {
+    set_error(data, "Unexpected end of input");
+    destroy_syntax_tree_node(node);
+    return NULL;
+  }
 
-    // 3.1 Parse the left E
-    SyntaxTreeNode *left = parse_E(parser, data);
-    if (left) {
-      // Attach left subtree to C node first
-      syntax_tree_add_child(node, left);
+  /* Try production C → E O */
+  if (token->type == TK_IDN || token->type == TK_SLP || token->type == TK_OCT ||
+      token->type == TK_DEC || token->type == TK_HEX) {
+    set_production(node, PROD_C_E_O, parser->production_tracker);
 
-      // 3.2 Match the relational operator
-      // data->current_token_index should now be at scan_idx
-      const Token *cur = get_current_token(data);
-      if (cur && cur->type == tkn->type &&
-          match_token(data, cur->type, node, token_type_to_string(cur->type))) {
+    SyntaxTreeNode *e_node = parse_E(parser, data);
+    if (e_node) {
+      syntax_tree_add_child(node, e_node);
+      SyntaxTreeNode *o_node = parse_O(parser, data);
+      if (o_node) {
+        syntax_tree_add_child(node, o_node);
+        return node;
+      }
+    }
 
-        // 3.3 Parse the right E
-        SyntaxTreeNode *right = parse_E(parser, data);
-        if (right) {
-          syntax_tree_add_child(node, right);
+    /* Backtrack if production failed */
+    data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
+
+    /* Rollback production tracker */
+    if (tracker_save_idx >= 0 && parser->production_tracker) {
+      production_tracker_rollback_to(parser->production_tracker,
+                                     tracker_save_idx);
+    }
+  }
+
+  /* Try production C → ( C ) */
+  if (token->type == TK_SLP) {
+    set_production(node, PROD_C_PAREN, parser->production_tracker);
+
+    if (match_token(data, TK_SLP, node, "(")) {
+      SyntaxTreeNode *c_node = parse_C(parser, data);
+      if (c_node) {
+        syntax_tree_add_child(node, c_node);
+        if (match_token(data, TK_SRP, node, ")")) {
           return node;
         }
       }
     }
 
-    // Failed: destroy node + complete rollback
-    destroy_syntax_tree_node(node);
-    data->current_token_index = save_tok;
-    data->has_error = false;
-    production_tracker_rollback_to(parser->production_tracker, save_trk);
-  }
+    /* Backtrack if production failed */
+    data->current_token_index = save_token_index;
+    data->has_error = false; /* Reset error flag */
 
-PARSE_PAREN:
-  // 4) Try C → '(' C ')'
-  {
-    const Token *cur = get_current_token(data);
-    if (cur && cur->type == TK_SLP) {
-      SyntaxTreeNode *node = create_nt_node(NT_C, "C", data);
-      if (!node)
-        return NULL;
-
-      set_production(node, PROD_C_PAREN, parser->production_tracker);
-
-      if (match_token(data, TK_SLP, node, "(")) {
-        SyntaxTreeNode *inner = parse_C(parser, data);
-        if (inner) {
-          syntax_tree_add_child(node, inner);
-          if (match_token(data, TK_SRP, node, ")")) {
-            return node;
-          }
-        }
-      }
-
-      // Parenthesis branch also failed, rollback
-      destroy_syntax_tree_node(node);
-      data->current_token_index = save_tok;
-      data->has_error = false;
-      production_tracker_rollback_to(parser->production_tracker, save_trk);
+    /* Rollback production tracker */
+    if (tracker_save_idx >= 0 && parser->production_tracker) {
+      production_tracker_rollback_to(parser->production_tracker,
+                                     tracker_save_idx);
     }
   }
 
-  // 5) Both branches failed, report error
-  set_error(data, "Failed to parse condition");
+  /* No valid production found */
+  char token_str[128];
+  token_to_string(token, token_str, sizeof(token_str));
+  set_error(data,
+            "Failed to parse condition (non-terminal C), unexpected token: %s",
+            token_str);
+  destroy_syntax_tree_node(node);
+  return NULL;
+}
+
+/**
+ * @brief Parse non-terminal O (Operator followed by expression)
+ */
+static SyntaxTreeNode *parse_O(Parser *parser, RDParserData *data) {
+  if (!parser || !data) {
+    return NULL;
+  }
+  /* Create node for non-terminal O */
+  SyntaxTreeNode *node = create_nt_node(NT_O, "O", data);
+  if (!node) {
+    return NULL;
+  }
+
+  /* Save current state for potential backtracking */
+  int tracker_save_idx = -1;
+  if (parser->production_tracker) {
+    tracker_save_idx = production_tracker_get_size(parser->production_tracker);
+  }
+
+  const Token *token = get_current_token(data);
+  if (!token) {
+    set_error(data, "Unexpected end of input");
+    destroy_syntax_tree_node(node);
+    return NULL;
+  }
+
+  /* Check token type and determine production */
+  ProductionID prod_id = PROD_UNVALID;
+  const char *op_str = NULL;
+
+  switch (token->type) {
+  case TK_GT:
+    prod_id = PROD_O_GT;
+    op_str = ">";
+    break;
+  case TK_LT:
+    prod_id = PROD_O_LT;
+    op_str = "<";
+    break;
+  case TK_EQ:
+    prod_id = PROD_O_EQ;
+    op_str = "=";
+    break;
+  case TK_GE:
+    prod_id = PROD_O_GE;
+    op_str = ">=";
+    break;
+  case TK_LE:
+    prod_id = PROD_O_LE;
+    op_str = "<=";
+    break;
+  case TK_NEQ:
+    prod_id = PROD_O_NE;
+    op_str = "<>";
+    break;
+  default:
+    break;
+  }
+
+  if (prod_id != PROD_UNVALID && op_str != NULL) {
+    set_production(node, prod_id, parser->production_tracker);
+
+    if (match_token(data, token->type, node, op_str)) {
+      SyntaxTreeNode *e_node = parse_E(parser, data);
+      if (e_node) {
+        syntax_tree_add_child(node, e_node);
+        return node;
+      }
+    }
+
+    /* Rollback production tracker */
+    if (tracker_save_idx >= 0 && parser->production_tracker) {
+      production_tracker_rollback_to(parser->production_tracker,
+                                     tracker_save_idx);
+    }
+  }
+
+  /* No valid production found */
+  char token_str[128];
+  token_to_string(token, token_str, sizeof(token_str));
+  set_error(data,
+            "Failed to parse operator (non-terminal O), unexpected token: %s",
+            token_str);
+  destroy_syntax_tree_node(node);
+
+  /* Rollback production tracker */
+  if (tracker_save_idx >= 0 && parser->production_tracker) {
+    production_tracker_rollback_to(parser->production_tracker,
+                                   tracker_save_idx);
+  }
   return NULL;
 }
 
@@ -937,7 +1000,6 @@ static SyntaxTreeNode *parse_F(Parser *parser, RDParserData *data) {
   }
 
   /* Save tracker state for potential backtracking */
-  int save_token_index = data->current_token_index;
   int tracker_save_idx = -1;
   if (parser->production_tracker) {
     tracker_save_idx = production_tracker_get_size(parser->production_tracker);

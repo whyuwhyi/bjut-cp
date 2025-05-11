@@ -59,7 +59,7 @@ typedef enum {
 /**
  * @brief Token structure
  */
-typedef struct {
+typedef struct Token {
   TokenType type; /**< Type of token */
   int line;       /**< Line number where token appears */
   int column;     /**< Column position where token starts */

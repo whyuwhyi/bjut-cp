@@ -6,7 +6,7 @@
 #ifndef RD_PARSER_H
 #define RD_PARSER_H
 
-#include "../parser_common.h"
+#include "../production_tracker.h"
 
 /**
  * @brief Recursive descent parser data

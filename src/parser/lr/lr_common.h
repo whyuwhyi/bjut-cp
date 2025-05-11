@@ -6,7 +6,7 @@
 #ifndef LR_COMMON_H
 #define LR_COMMON_H
 
-#include "../parser_common.h"
+#include "../production_tracker.h"
 #include "action_table.h"
 #include "automaton.h"
 #include "item.h"
@@ -15,7 +15,7 @@
 /**
  * @brief Generic LR parser data
  */
-typedef struct {
+typedef struct LRParserData {
   /* Parser automaton */
   LRAutomaton *automaton; /* LR automaton */
 

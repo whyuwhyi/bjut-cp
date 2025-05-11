@@ -7,6 +7,7 @@
 #include "codegen/tac.h"
 #include "label_manager/label_manager.h"
 #include "parser/grammar.h"
+#include "parser/syntax_tree.h"
 #include "sdt_attributes.h"
 #include "symbol_table/symbol_table.h"
 #include "utils.h"
@@ -15,8 +16,8 @@
 #include <string.h>
 
 /* Forward declarations for all semantic actions */
-static bool action_P_LT(SDTCodeGen *, SyntaxTreeNode *);
-static bool action_T_PT(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_P_L_T(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_T_P_T(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_T_EPS(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_L_S_SEMI(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_S_ASSIGN(SDTCodeGen *, SyntaxTreeNode *);
@@ -25,7 +26,8 @@ static bool action_S_WHILE(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_S_BEGIN(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_N_ELSE(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_N_EPS(SDTCodeGen *, SyntaxTreeNode *);
-static bool action_C_RELOP(SDTCodeGen *, SyntaxTreeNode *, TACOpType);
+static bool action_C_E_O(SDTCodeGen *, SyntaxTreeNode *);
+static bool action_O_RELOP(SDTCodeGen *, SyntaxTreeNode *, TACOpType);
 static bool action_C_PAREN(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_E_R_X(SDTCodeGen *, SyntaxTreeNode *);
 static bool action_X_PLUS(SDTCodeGen *, SyntaxTreeNode *);
@@ -41,10 +43,9 @@ static bool action_F_INT(SDTCodeGen *, SyntaxTreeNode *);
 
 /* Helper functions for common operations */
 static bool ensure_attributes(SyntaxTreeNode *node);
-static char *get_or_create_next_label(SDTCodeGen *gen, SyntaxTreeNode *node);
 static bool is_control_structure(SyntaxTreeNode *node);
 static SyntaxTreeNode *find_child_by_name(SyntaxTreeNode *node,
-                                          const char *name, int node_type);
+                                          const char *name, NodeType node_type);
 
 /**
  * @brief Execute the semantic actions for a node based on its production ID
@@ -61,9 +62,9 @@ bool sdt_execute_action(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Dispatch to appropriate action based on production ID */
   switch (node->production_id) {
   case PROD_P_LT:
-    return action_P_LT(gen, node);
+    return action_P_L_T(gen, node);
   case PROD_T_PT:
-    return action_T_PT(gen, node);
+    return action_T_P_T(gen, node);
   case PROD_T_EPSILON:
     return action_T_EPS(gen, node);
   case PROD_L_S_SEMI:
@@ -80,20 +81,22 @@ bool sdt_execute_action(SDTCodeGen *gen, SyntaxTreeNode *node) {
     return action_N_ELSE(gen, node);
   case PROD_N_EPSILON:
     return action_N_EPS(gen, node);
-  case PROD_C_GT:
-    return action_C_RELOP(gen, node, TAC_OP_GT);
-  case PROD_C_LT:
-    return action_C_RELOP(gen, node, TAC_OP_LT);
-  case PROD_C_EQ:
-    return action_C_RELOP(gen, node, TAC_OP_EQ);
-  case PROD_C_GE:
-    return action_C_RELOP(gen, node, TAC_OP_GE);
-  case PROD_C_LE:
-    return action_C_RELOP(gen, node, TAC_OP_LE);
-  case PROD_C_NE:
-    return action_C_RELOP(gen, node, TAC_OP_NE);
+  case PROD_C_E_O:
+    return action_C_E_O(gen, node);
   case PROD_C_PAREN:
     return action_C_PAREN(gen, node);
+  case PROD_O_GT:
+    return action_O_RELOP(gen, node, TAC_OP_GT);
+  case PROD_O_LT:
+    return action_O_RELOP(gen, node, TAC_OP_LT);
+  case PROD_O_EQ:
+    return action_O_RELOP(gen, node, TAC_OP_EQ);
+  case PROD_O_GE:
+    return action_O_RELOP(gen, node, TAC_OP_GE);
+  case PROD_O_LE:
+    return action_O_RELOP(gen, node, TAC_OP_LE);
+  case PROD_O_NE:
+    return action_O_RELOP(gen, node, TAC_OP_NE);
   case PROD_E_R_X:
     return action_E_R_X(gen, node);
   case PROD_X_PLUS_R_X:
@@ -138,18 +141,6 @@ static bool ensure_attributes(SyntaxTreeNode *node) {
 }
 
 /**
- * @brief Get existing or create new next_label
- * @return The next_label string (caller must free if not storing in attributes)
- */
-static char *get_or_create_next_label(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  if (node->attributes && node->attributes->next_label) {
-    return safe_strdup(node->attributes->next_label);
-  } else {
-    return label_manager_new_label(gen->label_manager);
-  }
-}
-
-/**
  * @brief Check if a node represents a control structure (if, while, block)
  * @return true if node is a control structure, false otherwise
  */
@@ -163,8 +154,8 @@ static bool is_control_structure(SyntaxTreeNode *node) {
  * @brief Find a child node by its symbol name and type
  * @return The matching child node, or NULL if not found
  */
-static SyntaxTreeNode *find_child_by_name(SyntaxTreeNode *node,
-                                          const char *name, int node_type) {
+static SyntaxTreeNode *
+find_child_by_name(SyntaxTreeNode *node, const char *name, NodeType node_type) {
   if (!node || !name)
     return NULL;
 
@@ -182,7 +173,7 @@ static SyntaxTreeNode *find_child_by_name(SyntaxTreeNode *node,
  *
  * P.code = L.code || T.code
  */
-static bool action_P_LT(SDTCodeGen *gen, SyntaxTreeNode *node) {
+static bool action_P_L_T(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Process children: [0]=L, [1]=T */
   sdt_codegen_generate(gen, node->children[0]);
   sdt_codegen_generate(gen, node->children[1]);
@@ -195,7 +186,7 @@ static bool action_P_LT(SDTCodeGen *gen, SyntaxTreeNode *node) {
  *
  * T.code = P.code || T.code
  */
-static bool action_T_PT(SDTCodeGen *gen, SyntaxTreeNode *node) {
+static bool action_T_P_T(SDTCodeGen *gen, SyntaxTreeNode *node) {
   /* Process children: [0]=P, [1]=T */
   sdt_codegen_generate(gen, node->children[0]);
   sdt_codegen_generate(gen, node->children[1]);
@@ -456,25 +447,78 @@ static bool action_N_EPS(SDTCodeGen *gen, SyntaxTreeNode *node) {
 }
 
 /**
- * @brief Semantic action for C → E1 op E2
+ * @brief Semantic action for C → E O
  *
- * C.code = E1.code || E2.code ||
- *          gen('if' E1.place 'op' E2.place 'goto' C.true) ||
- *          gen('goto' C.false)
+ * C.code = E.code || O.code
+ * E.place is passed to O.inherited
+ * O.true = C.true
+ * O.false = C.false
  */
-static bool action_C_RELOP(SDTCodeGen *gen, SyntaxTreeNode *node,
-                           TACOpType op) {
-  if (!node || node->children_count < 3) {
-    DEBUG_PRINT("ERROR: Missing expression node(s) in relational operation");
+static bool action_C_E_O(SDTCodeGen *gen, SyntaxTreeNode *node) {
+  if (!node || node->children_count < 2) {
+    DEBUG_PRINT("ERROR: Missing E or O node in C → E O");
     return false;
   }
 
-  SyntaxTreeNode *E1_node = node->children[0];
-  SyntaxTreeNode *E2_node = node->children[2];
+  SyntaxTreeNode *E_node = node->children[0]; /* Expression */
+  SyntaxTreeNode *O_node =
+      node->children[1]; /* Operator and right expression */
 
-  /* 1. Generate code for both expressions */
-  sdt_codegen_generate(gen, E1_node);
-  sdt_codegen_generate(gen, E2_node);
+  /* Ensure attribute structures exist */
+  if (!ensure_attributes(node) || !ensure_attributes(E_node) ||
+      !ensure_attributes(O_node)) {
+    return false;
+  }
+
+  /* 1. Generate code for left expression */
+  sdt_codegen_generate(gen, E_node);
+
+  /* 2. Pass the left expression's place to the operator node O */
+  O_node->attributes->place = safe_strdup(E_node->attributes->place);
+
+  /* 3. Pass true_label and false_label to O node */
+  if (node->attributes->true_label) {
+    O_node->attributes->true_label = safe_strdup(node->attributes->true_label);
+  } else {
+    node->attributes->true_label = label_manager_new_label(gen->label_manager);
+    O_node->attributes->true_label = safe_strdup(node->attributes->true_label);
+  }
+
+  if (node->attributes->false_label) {
+    O_node->attributes->false_label =
+        safe_strdup(node->attributes->false_label);
+  } else {
+    node->attributes->false_label = label_manager_new_label(gen->label_manager);
+    O_node->attributes->false_label =
+        safe_strdup(node->attributes->false_label);
+  }
+
+  /* 4. Generate code for operator and right expression */
+  sdt_codegen_generate(gen, O_node);
+
+  DEBUG_PRINT("Executed C → E O action");
+  return true;
+}
+
+/**
+ * @brief Semantic action for O → relop E
+ *
+ * O.code = E.code || gen('if' O.inherited 'relop' E.place 'goto' O.true) ||
+ * gen('goto' O.false)
+ */
+static bool action_O_RELOP(SDTCodeGen *gen, SyntaxTreeNode *node,
+                           TACOpType op) {
+  if (!node || node->children_count < 2) {
+    DEBUG_PRINT("ERROR: Missing E node in O → relop E");
+    return false;
+  }
+
+  /* Get the right expression node */
+  SyntaxTreeNode *relop_node = node->children[0]; /* Relational operator */
+  SyntaxTreeNode *E_node = node->children[1];     /* Right expression */
+
+  /* 1. Generate code for right expression */
+  sdt_codegen_generate(gen, E_node);
 
   /* 2. Ensure attributes exist */
   if (!ensure_attributes(node)) {
@@ -494,8 +538,10 @@ static bool action_C_RELOP(SDTCodeGen *gen, SyntaxTreeNode *node,
   char *f = node->attributes->false_label;
 
   /* 4. Generate conditional jump and default jump */
-  tac_program_add_inst(gen->program, op, t, E1_node->attributes->place,
-                       E2_node->attributes->place, 0);
+  tac_program_add_inst(gen->program, op, t,
+                       node->attributes->place,   /* Left operand (inherited) */
+                       E_node->attributes->place, /* Right operand */
+                       0);
   tac_program_add_inst(gen->program, TAC_OP_GOTO, f, NULL, NULL, 0);
 
   DEBUG_PRINT("Generated condition with relational operator: %s",
@@ -946,38 +992,34 @@ static bool action_F_ID(SDTCodeGen *gen, SyntaxTreeNode *node) {
  * F.code = '';
  */
 static bool action_F_INT(SDTCodeGen *gen, SyntaxTreeNode *node) {
-  /* Check node validity */
-  if (!node || node->type != NODE_NONTERMINAL || !ensure_attributes(node)) {
-    DEBUG_PRINT("ERROR: Invalid node for F_INT");
+  if (!gen || !node || node->children_count < 1) {
     return false;
   }
 
-  /* Find the integer terminal node */
-  SyntaxTreeNode *int_node = NULL;
-  for (int i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == NODE_TERMINAL) {
-      const char *symbol = node->children[i]->symbol_name;
-      if (strcmp(symbol, "int8") == 0 || strcmp(symbol, "int10") == 0 ||
-          strcmp(symbol, "int16") == 0) {
-        int_node = node->children[i];
-        break;
-      }
-    }
-  }
-
-  if (!int_node) {
-    DEBUG_PRINT("ERROR: Integer terminal node not found");
+  SyntaxTreeNode *int_node = node->children[0];
+  if (!int_node || int_node->type != NODE_TERMINAL) {
     return false;
   }
 
-  /* Get token string representation (simplified with improved token_to_string)
-   */
-  char token_str[128];
-  token_to_string(&int_node->token, token_str, sizeof(token_str));
+  /* Ensure node has attribute structure */
+  if (!ensure_attributes(node)) {
+    return false;
+  }
+
+  /* Get integer value from token's num_value */
+  char num_str[32]; /* Sufficient to store string representation of an int */
+  snprintf(num_str, sizeof(num_str), "%d", int_node->token.num_val);
 
   /* Set place to the integer value string */
-  node->attributes->place = safe_strdup(token_str);
-  DEBUG_PRINT("Factor place set to integer: %s", node->attributes->place);
+  if (node->attributes->place) {
+    free(node->attributes->place);
+  }
+  node->attributes->place = safe_strdup(num_str);
 
+  if (!node->attributes->place) {
+    return false;
+  }
+
+  DEBUG_PRINT("Factor place set to integer: %s", node->attributes->place);
   return true;
 }

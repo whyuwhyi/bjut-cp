@@ -58,12 +58,15 @@ bool slr1_build_parsing_table(Parser *parser, SLR1ParserData *data) {
     return false;
   }
 
-  /* Find EOF token index */
+  /* Find EOF and semicolon token indices */
   int eof_idx = -1;
+  int semi_idx = -1;
   for (int i = 0; i < grammar->terminals_count; i++) {
-    if (grammar->symbols[grammar->terminal_indices[i]].token == TK_EOF) {
+    TokenType token = grammar->symbols[grammar->terminal_indices[i]].token;
+    if (token == TK_EOF) {
       eof_idx = i;
-      break;
+    } else if (token == TK_SEMI) {
+      semi_idx = i;
     }
   }
 
@@ -71,116 +74,28 @@ bool slr1_build_parsing_table(Parser *parser, SLR1ParserData *data) {
   for (int state_idx = 0; state_idx < automaton->state_count; state_idx++) {
     LRState *state = automaton->states[state_idx];
 
-    /* Fill action table based on items */
-    for (int item_idx = 0; item_idx < state->item_count; item_idx++) {
-      LRItem *item = state->items[item_idx];
-
-      /* Check for reduction */
-      if (lr_item_is_reduction(item, grammar)) {
-        Production *prod = &grammar->productions[item->production_id];
-
-        /* Accept if this is [S' -> S.] or [S' -> S. #] */
-        if (prod->lhs == grammar->start_symbol &&
-            item->dot_position >= prod->rhs_length) {
-
-          /* Set ACCEPT action for EOF */
-          if (eof_idx >= 0) {
-            action_table_set_action(common->table, state_idx, eof_idx,
-                                    ACTION_ACCEPT, 0);
-            DEBUG_PRINT("Set ACCEPT action for state %d on EOF", state_idx);
-          }
-
-          /* Also accept on semicolon for compatibility */
-          int semi_idx = -1;
-          for (int i = 0; i < grammar->terminals_count; i++) {
-            if (grammar->symbols[grammar->terminal_indices[i]].token ==
-                TK_SEMI) {
-              semi_idx = i;
-              break;
-            }
-          }
-
-          if (semi_idx >= 0) {
-            action_table_set_action(common->table, state_idx, semi_idx,
-                                    ACTION_ACCEPT, 0);
-            DEBUG_PRINT("Set ACCEPT action for state %d on semicolon",
-                        state_idx);
-          }
-        } else {
-          /* Reduce by this production for terminals in FOLLOW(LHS) */
-          int lhs = prod->lhs;
-
-          for (int term = 0; term < grammar->terminals_count; term++) {
-            TokenType token =
-                grammar->symbols[grammar->terminal_indices[term]].token;
-
-            if (grammar_is_in_follow(grammar, lhs, token)) {
-              /* For empty productions, prioritize reduction over shifts */
-              bool is_empty_production =
-                  (prod->rhs_length == 0 ||
-                   (prod->rhs_length == 1 &&
-                    prod->rhs[0].type == SYMBOL_EPSILON));
-
-              /* Set the reduction action */
-              action_table_set_action(common->table, state_idx, term,
-                                      ACTION_REDUCE, item->production_id);
-
-              /* Debug output for important reductions */
-              if (is_empty_production) {
-                const char *term_name =
-                    grammar->symbols[grammar->terminal_indices[term]].name;
-                const char *nt_name =
-                    grammar->symbols[grammar->nonterminal_indices[lhs]].name;
-                DEBUG_PRINT("Set REDUCE action for state %d on %s by empty "
-                            "production %s -> ε (id: %d)",
-                            state_idx, term_name, nt_name, item->production_id);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    /* Fill action and goto tables based on transitions */
+    /* First pass: Add all shift actions from transitions */
     for (int trans = 0; trans < state->transition_count; trans++) {
       int symbol_id = state->transitions[trans].symbol_id;
       LRState *target = state->transitions[trans].state;
 
-      /* Check if this is a terminal */
+      /* Handle terminal shifts */
       for (int term = 0; term < grammar->terminals_count; term++) {
         if (grammar->terminal_indices[term] == symbol_id) {
-          /* Handle shift-reduce conflicts - prefer shift except for empty
-           * productions */
-          Action existing =
-              action_table_get_action(common->table, state_idx, term);
-
-          if (existing.type == ACTION_REDUCE) {
-            /* Get production info */
-            Production *reduce_prod = &grammar->productions[existing.value];
-
-            /* If reduction production is an empty production, prefer reduce */
-            if (reduce_prod->rhs_length == 0 ||
-                (reduce_prod->rhs_length == 1 &&
-                 reduce_prod->rhs[0].type == SYMBOL_EPSILON)) {
-
-              /* Keep reduce action, don't add shift */
-              const char *term_name =
-                  grammar->symbols[grammar->terminal_indices[term]].name;
-              DEBUG_PRINT("Resolved shift-reduce conflict in state %d for %s "
-                          "in favor of reduce (empty production)",
-                          state_idx, term_name);
-              continue;
-            }
-            /* Otherwise, prefer shift (default SLR behavior) */
-          }
-
           action_table_set_action(common->table, state_idx, term, ACTION_SHIFT,
                                   target->id);
+
+          /* Debug info for semicolon shifts */
+          if (term == semi_idx) {
+            DEBUG_PRINT(
+                "Set SHIFT action for state %d on SEMICOLON to state %d",
+                state_idx, target->id);
+          }
           break;
         }
       }
 
-      /* Check if this is a non-terminal */
+      /* Handle non-terminal gotos */
       for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
         if (grammar->nonterminal_indices[nt] == symbol_id) {
           action_table_set_goto(common->table, state_idx, nt, target->id);
@@ -188,47 +103,175 @@ bool slr1_build_parsing_table(Parser *parser, SLR1ParserData *data) {
         }
       }
     }
+
+    /* Second pass: Add reduction actions based on FOLLOW sets */
+    for (int item_idx = 0; item_idx < state->item_count; item_idx++) {
+      LRItem *item = state->items[item_idx];
+
+      /* Check for reduction */
+      if (lr_item_is_reduction(item, grammar)) {
+        Production *prod = &grammar->productions[item->production_id];
+
+        /* Check if this is a special case for the augmented start production */
+        if (prod->lhs == grammar->start_symbol &&
+            item->dot_position >= prod->rhs_length) {
+
+          /* Accept on EOF */
+          if (eof_idx >= 0) {
+            action_table_set_action(common->table, state_idx, eof_idx,
+                                    ACTION_ACCEPT, 0);
+            DEBUG_PRINT("Set ACCEPT action for state %d on EOF", state_idx);
+          }
+        } else {
+          /* For all other reductions, use FOLLOW set of LHS */
+          int lhs = prod->lhs;
+
+          /* Extra debug for statement productions */
+          bool is_stmt_production = false;
+          for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
+            if (grammar->nonterminal_indices[nt] == lhs) {
+              const char *nt_name =
+                  grammar->symbols[grammar->nonterminal_indices[nt]].name;
+              if (strcmp(nt_name, "S") == 0 || strcmp(nt_name, "L") == 0) {
+                is_stmt_production = true;
+              }
+              break;
+            }
+          }
+
+          /* Add reduction actions for terminals in FOLLOW(LHS) */
+          for (int term = 0; term < grammar->terminals_count; term++) {
+            TokenType token =
+                grammar->symbols[grammar->terminal_indices[term]].token;
+
+            if (grammar_is_in_follow(grammar, lhs, token)) {
+              /* Get existing action if any */
+              Action existing =
+                  action_table_get_action(common->table, state_idx, term);
+
+              /* Determine if we should overwrite with reduction */
+              bool add_reduction = true;
+
+              /* Check for conflicts */
+              if (existing.type == ACTION_SHIFT) {
+                /* Special handling for empty productions */
+                bool is_empty_production =
+                    (prod->rhs_length == 0 ||
+                     (prod->rhs_length == 1 &&
+                      prod->rhs[0].type == SYMBOL_EPSILON));
+
+                /* Prefer reduce for empty productions, shift otherwise */
+                if (!is_empty_production) {
+                  add_reduction = false;
+                }
+
+                /* Special case for semicolon - prioritize shift for statements
+                 */
+                if (token == TK_SEMI && !is_stmt_production) {
+                  add_reduction = false;
+                  DEBUG_PRINT(
+                      "Preferring SHIFT over REDUCE for SEMICOLON in state %d",
+                      state_idx);
+                }
+              }
+
+              if (add_reduction) {
+                action_table_set_action(common->table, state_idx, term,
+                                        ACTION_REDUCE, item->production_id);
+
+                /* Debug for semicolon reductions */
+                if (token == TK_SEMI) {
+                  DEBUG_PRINT("Set REDUCE action for state %d on SEMICOLON by "
+                              "production %d",
+                              state_idx, item->production_id);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
-  /* Special handling for start states to ensure proper EOF acceptance */
+  /* Special handling for semicolon-terminated statements */
+  if (semi_idx >= 0) {
+    for (int state_idx = 0; state_idx < automaton->state_count; state_idx++) {
+      LRState *state = automaton->states[state_idx];
+
+      /* Look for statement list states */
+      bool is_statement_list_state = false;
+      for (int item_idx = 0; item_idx < state->item_count; item_idx++) {
+        LRItem *item = state->items[item_idx];
+        Production *prod = &grammar->productions[item->production_id];
+
+        /* Check productions related to statements */
+        for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
+          const char *nt_name =
+              grammar->symbols[grammar->nonterminal_indices[nt]].name;
+          if ((strcmp(nt_name, "L") == 0 || strcmp(nt_name, "S") == 0) &&
+              prod->lhs == grammar->nonterminal_indices[nt]) {
+            is_statement_list_state = true;
+            break;
+          }
+        }
+
+        if (is_statement_list_state)
+          break;
+      }
+
+      /* For statement list states, ensure semicolon has correct handling */
+      if (is_statement_list_state) {
+        Action semi_action =
+            action_table_get_action(common->table, state_idx, semi_idx);
+
+        /* If we don't have an action for semicolon, check if we need one */
+        if (semi_action.type == ACTION_ERROR) {
+          for (int trans = 0; trans < state->transition_count; trans++) {
+            int symbol_id = state->transitions[trans].symbol_id;
+
+            /* Check if there's a transition after statement */
+            for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
+              const char *nt_name =
+                  grammar->symbols[grammar->nonterminal_indices[nt]].name;
+              if (strcmp(nt_name, "S") == 0 &&
+                  grammar->nonterminal_indices[nt] == symbol_id) {
+
+                /* This may be a state that needs semicolon handling */
+                DEBUG_PRINT("Special check for semicolon handling in state %d",
+                            state_idx);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* Add special handling for end-of-statement contexts */
   for (int state_idx = 0; state_idx < automaton->state_count; state_idx++) {
     LRState *state = automaton->states[state_idx];
 
+    /* Look for statement-end states */
     for (int item_idx = 0; item_idx < state->item_count; item_idx++) {
       LRItem *item = state->items[item_idx];
       Production *prod = &grammar->productions[item->production_id];
 
-      /* Look for items representing full program parse */
-      if (prod->lhs == grammar->start_symbol) {
-        /* S' -> P • or similar forms */
-        if (item->dot_position == prod->rhs_length) {
-          /* Set ACCEPT action for EOF */
-          if (eof_idx >= 0) {
-            action_table_set_action(common->table, state_idx, eof_idx,
-                                    ACTION_ACCEPT, 0);
-            DEBUG_PRINT("Set additional ACCEPT action for state %d on EOF",
-                        state_idx);
-          }
-        }
-        /* S' -> P • # or similar forms */
-        else if (item->dot_position == 1 && prod->rhs_length == 2 &&
-                 prod->rhs[1].type == SYMBOL_TERMINAL &&
-                 prod->rhs[1].token == TK_EOF) {
+      /* For S -> ... • ; forms */
+      if (item->dot_position > 0 && item->dot_position == prod->rhs_length) {
+        for (int nt = 0; nt < grammar->nonterminals_count; nt++) {
+          const char *nt_name =
+              grammar->symbols[grammar->nonterminal_indices[nt]].name;
+          if (strcmp(nt_name, "S") == 0 &&
+              prod->lhs == grammar->nonterminal_indices[nt]) {
 
-          /* Look for transition on EOF */
-          for (int trans = 0; trans < state->transition_count; trans++) {
-            int symbol_id = state->transitions[trans].symbol_id;
-            LRState *target = state->transitions[trans].state;
-
-            /* See if this transition is on EOF */
-            for (int term = 0; term < grammar->terminals_count; term++) {
-              if (grammar->terminal_indices[term] == symbol_id &&
-                  term == eof_idx) {
-                action_table_set_action(common->table, state_idx, eof_idx,
-                                        ACTION_SHIFT, target->id);
-                DEBUG_PRINT("Set SHIFT action for state %d on EOF to state %d",
-                            state_idx, target->id);
-                break;
+            /* Make sure semicolon can be accepted after statement */
+            if (semi_idx >= 0) {
+              Action semi_action =
+                  action_table_get_action(common->table, state_idx, semi_idx);
+              if (semi_action.type == ACTION_ERROR) {
+                /* There might be a missing transition or reduction */
+                DEBUG_PRINT("Statement end state %d missing semicolon handling",
+                            state_idx);
               }
             }
           }

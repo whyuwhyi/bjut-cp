@@ -1,4 +1,5 @@
 #include "lexer/lexer.h"
+#include "error_handler.h"
 #include "utils.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -38,103 +39,6 @@ static Rule default_rules[NR_REGEX] = {
     {"0[xX][0-9a-fA-F]+", TK_HEX},
     {"0|[1-9][0-9]*", TK_DEC}};
 #endif
-
-/**
- * Extract a line from the input string
- */
-int extract_line_from_input(const char *input, int line, char *buffer,
-                            int buffer_size) {
-  if (!input || !buffer || buffer_size <= 0 || line <= 0) {
-    return -1;
-  }
-
-  int current_line = 1;
-  const char *line_start = input;
-  const char *p = input;
-
-  // Find the start of the requested line
-  while (*p && current_line < line) {
-    if (*p == '\n') {
-      current_line++;
-      line_start = p + 1;
-    }
-    p++;
-  }
-
-  if (current_line != line) {
-    // Line number is out of bounds
-    return -1;
-  }
-
-  // Find the end of the line
-  const char *line_end = line_start;
-  while (*line_end && *line_end != '\n') {
-    line_end++;
-  }
-
-  // Calculate line length
-  int line_length = line_end - line_start;
-
-  int copy_length =
-      (line_length < buffer_size - 1) ? line_length : buffer_size - 1;
-
-  if (copy_length > 80)
-    copy_length = 80;
-
-  // Copy the line to the buffer
-  strncpy(buffer, line_start, copy_length);
-  buffer[copy_length] = '\0';
-
-  return copy_length;
-}
-
-/**
- * Report a lexical error with highlighting
- */
-void lexer_report_error(Lexer *lexer, int line, int column, int length,
-                        const char *format, ...) {
-  if (!lexer) {
-    return;
-  }
-
-  lexer->has_error = true;
-  lexer->error_count++;
-
-  char error_message[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(error_message, sizeof(error_message), format, args);
-  va_end(args);
-
-  char line_buffer[256] = {0}; // 确保初始化为空
-
-  // 确保length值合理
-  if (length <= 0)
-    length = 1;
-  if (length > 20)
-    length = 20; // 限制最大错误标记长度
-
-  if (lexer->input && extract_line_from_input(lexer->input, line, line_buffer,
-                                              sizeof(line_buffer)) > 0) {
-    PRINT_ERROR_HIGHLIGHT(line, column, line_buffer, column, length, "%s",
-                          error_message);
-
-    if (strstr(error_message, "Unrecognized character")) {
-      PRINT_ERROR_HELP("This character is not part of the language syntax");
-    } else if (strstr(error_message, "Invalid hexadecimal")) {
-      PRINT_ERROR_HELP("Hexadecimal literals must start with '0x' followed by "
-                       "valid hex digits (0-9, a-f, A-F)");
-    } else if (strstr(error_message, "Invalid octal")) {
-      PRINT_ERROR_HELP(
-          "Octal literals must start with '0' followed by octal digits (0-7)");
-    } else if (strstr(error_message, "Token is too long")) {
-      PRINT_ERROR_HELP(
-          "The maximum token length is defined as CONFIG_MAX_TOKEN_LEN");
-    }
-  } else {
-    PRINT_ERROR(line, column, "%s", error_message);
-  }
-}
 
 /**
  * Check if lexer has encountered any errors

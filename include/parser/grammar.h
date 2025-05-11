@@ -230,7 +230,8 @@ typedef enum {
   NT_R, /* Term */
   NT_Y, /* Term Tail */
   NT_F, /* Factor */
-  NT_T  /* Program Tail */
+  NT_T, /* Program Tail */
+  NT_O  /* Operator followed by expression */
 } Nonterminal;
 
 /**
@@ -247,26 +248,27 @@ typedef enum {
   PROD_S_BEGIN_L_END = 7,
   PROD_N_ELSE_S = 8,
   PROD_N_EPSILON = 9,
-  PROD_C_GT = 10,
-  PROD_C_LT = 11,
-  PROD_C_EQ = 12,
-  PROD_C_GE = 13,
-  PROD_C_LE = 14,
-  PROD_C_NE = 15,
-  PROD_C_PAREN = 16,
-  PROD_E_R_X = 17,
-  PROD_X_PLUS_R_X = 18,
-  PROD_X_MINUS_R_X = 19,
-  PROD_X_EPSILON = 20,
-  PROD_R_F_Y = 21,
-  PROD_Y_MUL_F_Y = 22,
-  PROD_Y_DIV_F_Y = 23,
-  PROD_Y_EPSILON = 24,
-  PROD_F_PAREN = 25,
-  PROD_F_ID = 26,
-  PROD_F_INT8 = 27,
-  PROD_F_INT10 = 28,
-  PROD_F_INT16 = 29,
+  PROD_C_E_O = 10,
+  PROD_C_PAREN = 11,
+  PROD_O_GT = 12,
+  PROD_O_LT = 13,
+  PROD_O_EQ = 14,
+  PROD_O_GE = 15,
+  PROD_O_LE = 16,
+  PROD_O_NE = 17,
+  PROD_E_R_X = 18,
+  PROD_X_PLUS_R_X = 19,
+  PROD_X_MINUS_R_X = 20,
+  PROD_X_EPSILON = 21,
+  PROD_R_F_Y = 22,
+  PROD_Y_MUL_F_Y = 23,
+  PROD_Y_DIV_F_Y = 24,
+  PROD_Y_EPSILON = 25,
+  PROD_F_PAREN = 26,
+  PROD_F_ID = 27,
+  PROD_F_INT8 = 28,
+  PROD_F_INT10 = 29,
+  PROD_F_INT16 = 30,
   PROD_UNVALID
 } ProductionID;
 

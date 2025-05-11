@@ -5,7 +5,7 @@
 
 #include "parser/parser.h"
 #include "parser/grammar.h"
-#include "parser_common.h"
+#include "production_tracker.h"
 #include "rd/rd_parser.h"
 #include "utils.h"
 #include <stdio.h>

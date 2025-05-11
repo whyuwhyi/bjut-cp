@@ -6,7 +6,7 @@
 #ifndef LR_PARSER_H
 #define LR_PARSER_H
 
-#include "../parser_common.h"
+#include "../production_tracker.h"
 #include "lr_common.h"
 
 /**

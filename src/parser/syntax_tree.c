@@ -5,7 +5,7 @@
 
 #include "parser/syntax_tree.h"
 #include "lexer/token.h"
-#include "parser_common.h"
+#include "production_tracker.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -3,6 +3,7 @@
  * @brief Implementation of state machine-based lexical analyzer
  */
 
+#include "error_handler.h"
 #include "lexer/lexer.h"
 #include "utils.h"
 #include <ctype.h>
