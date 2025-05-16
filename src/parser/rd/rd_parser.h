@@ -9,20 +9,27 @@
 #include "../production_tracker.h"
 
 /**
- * @brief Recursive descent parser data
+ * @brief Parser context for better error messages
+ */
+typedef enum {
+  CONTEXT_NONE,
+  CONTEXT_PROGRAM,
+  CONTEXT_STATEMENT,
+  CONTEXT_EXPRESSION,
+  CONTEXT_CONDITION
+} ParserContext;
+
+/**
+ * @brief Extended recursive descent parser data structure
  */
 typedef struct {
-  /* Parsing state */
-  Lexer *lexer;            /* Current lexer */
-  int current_token_index; /* Current token index */
-
-  /* Error handling */
-  bool has_error;          /* Error flag */
-  char error_message[256]; /* Error message */
-
-  /* Syntax tree building */
-  SyntaxTree *syntax_tree;      /* The syntax tree being built */
-  SyntaxTreeNode *current_node; /* Current node in the tree */
+  Lexer *lexer;                  /* Lexer with tokenized input */
+  int current_token_index;       /* Current token index */
+  bool has_error;                /* Error flag */
+  char error_message[512];       /* Error message buffer */
+  SyntaxTree *syntax_tree;       /* Resulting syntax tree */
+  bool error_recovery;           /* Error recovery flag */
+  ParserContext current_context; /* Current parsing context */
 } RDParserData;
 
 /**

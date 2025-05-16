@@ -241,7 +241,8 @@ int main(int argc, char *argv[]) {
   }
 
   /* Clean up */
-  sdt_codegen_destroy(sdt_gen); /* This will also destroy the program */
+  syntax_tree_destroy(syntax_tree);
+  sdt_codegen_destroy(sdt_gen);
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);

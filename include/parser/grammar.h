@@ -237,6 +237,43 @@ typedef enum {
 /**
  * @brief Production IDs from grammar
  */
+// typedef enum {
+//   PROD_P_LT = 0,
+//   PROD_T_PT = 1,
+//   PROD_T_EPSILON = 2,
+//   PROD_L_S_SEMI = 3,
+//   PROD_L_S_SEMI_L = 4,
+//   PROD_L_EPSILON = 5,
+//   PROD_S_ASSIGN = 6,
+//   PROD_S_IF_C_THEN_S_N = 7,
+//   PROD_S_WHILE_C_DO_S = 8,
+//   PROD_S_BEGIN_L_END = 9,
+//   PROD_N_ELSE_S = 10,
+//   PROD_N_EPSILON = 11,
+//   PROD_C_E_O = 12,
+//   PROD_C_PAREN = 13,
+//   PROD_O_GT = 14,
+//   PROD_O_LT = 15,
+//   PROD_O_EQ = 16,
+//   PROD_O_GE = 17,
+//   PROD_O_LE = 18,
+//   PROD_O_NE = 19,
+//   PROD_E_R_X = 20,
+//   PROD_X_PLUS_R_X = 21,
+//   PROD_X_MINUS_R_X = 22,
+//   PROD_X_EPSILON = 23,
+//   PROD_R_F_Y = 24,
+//   PROD_Y_MUL_F_Y = 25,
+//   PROD_Y_DIV_F_Y = 26,
+//   PROD_Y_EPSILON = 27,
+//   PROD_F_PAREN = 28,
+//   PROD_F_ID = 29,
+//   PROD_F_INT8 = 30,
+//   PROD_F_INT10 = 31,
+//   PROD_F_INT16 = 32,
+//   PROD_UNVALID
+// } ProductionID;
+
 typedef enum {
   PROD_P_LT = 0,
   PROD_T_PT = 1,

@@ -300,8 +300,6 @@ static void compute_first_sets(Grammar *g) {
   if (!g)
     return;
 
-  int T = g->terminals_count;
-
   // Calculate FIRST sets until no changes are made
   bool first_changed;
   do {

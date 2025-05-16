@@ -4,6 +4,7 @@
  */
 
 #include "lr_parser.h"
+#include "automaton.h"
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -471,6 +472,7 @@ bool lr_create_canonical_collection(LRAutomaton *automaton, Grammar *grammar,
 
   DEBUG_PRINT("Created canonical collection with %d states",
               automaton->state_count);
+  // lr_automaton_print(automaton);
   return true;
 }
 

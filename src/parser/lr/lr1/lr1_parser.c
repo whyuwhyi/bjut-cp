@@ -146,17 +146,6 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
           /* Add reduction action */
           action_table_set_action(common->table, st, term, ACTION_REDUCE,
                                   item->production_id);
-
-          /* Log empty production reductions */
-          if (p->rhs_length == 0 ||
-              (p->rhs_length == 1 && p->rhs[0].type == SYMBOL_EPSILON)) {
-            const char *term_name = g->symbols[g->terminal_indices[term]].name;
-            const char *nt_name =
-                g->symbols[g->nonterminal_indices[p->lhs]].name;
-            DEBUG_PRINT("Added REDUCE action for %s by empty production %s -> "
-                        "ε (id: %d)",
-                        term_name, nt_name, item->production_id);
-          }
         }
       }
     }
@@ -185,10 +174,6 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
                 (reduce_prod->rhs_length == 1 &&
                  reduce_prod->rhs[0].type == SYMBOL_EPSILON)) {
               /* Keep reduce action, don't add shift */
-              const char *term_name = g->symbols[g->terminal_indices[t]].name;
-              DEBUG_PRINT("Resolved shift-reduce conflict in state %d for %s "
-                          "in favor of reduce (empty production)",
-                          st, term_name);
               continue;
             }
           }
@@ -196,10 +181,6 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
           /* Add shift action */
           action_table_set_action(common->table, st, t, ACTION_SHIFT, to->id);
 
-          /* Log the shift action */
-          const char *term_name = g->symbols[g->terminal_indices[t]].name;
-          DEBUG_PRINT("Added SHIFT action for state %d on %s to state %d", st,
-                      term_name, to->id);
           break;
         }
       }
@@ -209,10 +190,6 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
         if (g->nonterminal_indices[nt] == sym) {
           action_table_set_goto(common->table, st, nt, to->id);
 
-          /* Log the goto action */
-          const char *nt_name = g->symbols[g->nonterminal_indices[nt]].name;
-          DEBUG_PRINT("Added GOTO action for state %d on %s to state %d", st,
-                      nt_name, to->id);
           break;
         }
       }
@@ -220,7 +197,7 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
   }
 
   /* 3) Special handling: ensure correct handling of EOF */
-  /* Find all states containing "S' -> P •" or "S' -> P • #" */
+  /* Find all states containing "S' -> P • #" */
   for (int st = 0; st < automaton->state_count; st++) {
     LRState *state = automaton->states[st];
 
@@ -274,6 +251,7 @@ bool lr1_build_parsing_table(Parser *parser, LR1ParserData *data) {
 
   DEBUG_PRINT("LR(1) parsing table built successfully with %d states",
               automaton->state_count);
+  action_table_print(common->table, g);
   return true;
 }
 

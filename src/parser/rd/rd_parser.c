@@ -1238,11 +1238,6 @@ void rd_parser_destroy(Parser *parser) {
 
   /* Free parser-specific data */
   if (parser->data) {
-    RDParserData *data = (RDParserData *)parser->data;
-    /* Free syntax tree if it exists and hasn't been returned */
-    if (data->syntax_tree) {
-      syntax_tree_destroy(data->syntax_tree);
-    }
     free(parser->data);
   }
 

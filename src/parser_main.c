@@ -233,6 +233,7 @@ int main(int argc, char *argv[]) {
 #endif
   }
 
+  syntax_tree_destroy(tree);
   parser_destroy(parser);
   free(source);
   lexer_destroy(lexer);
